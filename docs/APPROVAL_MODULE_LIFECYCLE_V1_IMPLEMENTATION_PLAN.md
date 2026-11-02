@@ -75,3 +75,28 @@ Defer upgrades, arbitrary configuration changes, multi-level approvals, delegate
 ## 8. Safety statement
 
 This file is a design artifact only. No SQL migration was applied, no organization/member/role was created, no existing business data was changed, and no production RPC/grant was modified.
+
+
+## 9. Schema contract verified against the live database (read-only inspection)
+
+The following existing columns were verified in information_schema; use these names rather than inventing a parallel schema:
+
+- organizations: id, organization_key, name, legal_name, status, timezone, currency_code, created_by, created_at, updated_at.
+- organization_members: id, organization_id, user_id, role_id, member_status, invited_by, joined_at, created_at, updated_at.
+- app_roles: id, organization_id, role_key, role_name, description, is_system, is_active, created_at, updated_at.
+- permissions: id, permission_key, description, module_key, created_at.
+- role_permissions: id, organization_id, role_id, permission_id, granted_at.
+- approval_requests: id, organization_id, requested_by, request_type, target_type, target_id, request_payload, reason, status, required_approvals, expires_at, created_at, resolved_at.
+- approval_actions: id, organization_id, approval_request_id, actor_user_id, decision, comment, created_at.
+- module_change_requests: id, organization_id, module_id, request_type, requested_by, current_configuration, proposed_configuration, reason, approval_request_id, status, created_at, completed_at.
+- organization_modules: id, organization_id, module_id, status, installed_version, configuration, enabled_at, disabled_at, enabled_by, created_at, updated_at.
+- module_audit_logs: id, organization_id, branch_id, actor_user_id, action, resource_type, resource_id, old_values, new_values, approval_request_id, request_id, ip_address, user_agent, created_at.
+- module_dependencies: id, module_id, depends_on_module_id, minimum_version, is_mandatory, created_at.
+
+Implementation implication: role_permissions is organization-scoped and permission rows are global catalogue rows; membership has nullable role_id and member_status. The bootstrap must create/assign a role and permission links in the correct organization scope, and authorization must reject invited/inactive memberships. Do not assume role_key or member_status allowed values until CHECK constraints and existing trigger/function logic have been inspected.
+
+## 10. Repository source inspection status
+
+On feature/authentication-v1, the following common application entry points were not found at repository root: package.json, index.html, src/App.tsx, app/page.tsx, src/main.tsx. README.md exists but contains only the repository title. The branch list currently exposes main and feature/authentication-v1. The available commit search returned only the initial commit, so it is not sufficient to infer the full feature-branch history. The docs added during this review are present on the feature branch, but application source paths and the actual auth/bootstrap frontend contract remain unverified.
+
+This is a repository visibility/source-location blocker, not proof that no application source exists elsewhere. Before implementing frontend RPC calls, obtain the actual source archive or exact source paths and inspect the current login/session flow.
