@@ -12,6 +12,9 @@ Scope: Version 1.0 single-level approval for module enable/disable.
 - The only configured dependency is branch_management -> organization_management (mandatory, minimum version 1.0.0).
 - The existing private.branch_module_set_enabled(organization_id, enabled, reason) performs a direct state change after module.manage authorization. It does not require approval and does not check reverse dependencies or dependency cycles.
 - public.branch_module_set_enabled is a SECURITY INVOKER wrapper around that private SECURITY DEFINER function.
+- Verified function ACL: public wrapper has EXECUTE for authenticated and service_role; private implementation has EXECUTE for authenticated. anon and PUBLIC do not have EXECUTE. This is not an anonymous exposure, but the authenticated direct-call route still bypasses the proposed approval workflow.
+- Existing permission catalogue contains approval.approve, approval.manage, approval.read, module.manage, module.read, and module.request. module.manage is currently described as “Approve and execute module changes”; the V1 separation of request, approval, and application needs a clarified permission contract and reviewed role mappings.
+- RLS policies for approval requests/actions, module change requests, organization modules, and module audit logs are scoped SELECT policies. Mutations should remain behind reviewed RPCs.
 - No organization/member/role records exist, so an end-to-end authorization or approval test cannot yet be performed with a real tenant identity.
 
 ## 2. V1 behavior
@@ -30,12 +33,12 @@ Scope: Version 1.0 single-level approval for module enable/disable.
 
 ## 3. RPC/API boundary
 
-Implement SECURITY DEFINER routines only in the non-exposed private schema, with a pinned search_path and explicit auth.uid() checks. Expose only SECURITY INVOKER wrappers in public. Grant execution only to authenticated; explicitly keep anon and PUBLIC from executing lifecycle mutation RPCs.
+Implement SECURITY DEFINER routines only in the non-exposed private schema, with a pinned search_path and explicit auth.uid() checks. Expose only SECURITY INVOKER wrappers in public. Grant execution only to authenticated; explicitly keep anon and PUBLIC from executing lifecycle mutation RPCs. Do not grant service_role unless a separately reviewed server-side workflow requires it.
 
 Proposed RPC responsibilities:
 - module_request_change(org_id, module_key, request_type, reason): validate active membership + module.request; allow only enable/disable; lock the organization row; reject core modules; snapshot current state; create both linked request rows atomically.
 - approval_decide(org_id, approval_request_id, decision, comment): validate active membership + approval.approve; lock request; reject self-approval, expired/non-pending requests, duplicate decisions; update approval status.
-- module_apply_approved_change(org_id, module_change_request_id): validate module.manage and approved status; lock organization and request; recheck all guards; update organization_modules; append audit record; mark request completed.
+- module_apply_approved_change(org_id, module_change_request_id): validate the reviewed application permission and approved status; lock organization and request; recheck all guards; update organization_modules; append audit record; mark request completed.
 
 The exact function signatures and payload JSON shape must be finalized against the frontend contract before migration creation.
 
@@ -53,7 +56,7 @@ Do not revoke or remove the existing Branch RPC in isolation: the current UI may
 1. Update the Branch UI to submit a module change request and show pending/approved/rejected/completed states.
 2. Route Branch enable/disable through the generic approval workflow.
 3. Verify no direct legacy route can change state without approval.
-4. Only then remove/restrict the old direct mutation path and update grants.
+4. Only then remove/restrict the old direct mutation path and update grants. Include the service_role grant in the review; do not assume it is inherited.
 5. Run UI + database regression tests before production rollout.
 
 ## 6. V1 exclusions
