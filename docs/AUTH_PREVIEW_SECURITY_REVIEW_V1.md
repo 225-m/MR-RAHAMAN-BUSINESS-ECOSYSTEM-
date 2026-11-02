@@ -78,3 +78,30 @@ The preflight and post-migration SQL files are SELECT-only diagnostics. The sche
 ## 7. Change and verification statement
 
 No SQL was executed. No production data, schema, RLS policy, grants, Auth provider, secret, or user role was changed. No app deployment or merge to `main` was performed. This document records review findings only.
+
+
+## 8. Follow-up repository and live RPC authorization review (2026-11-03)
+
+### Repository branch/source discovery
+- Enumerated all repository branches: only `main` and `feature/authentication-v1` were returned; no additional branch cursor remained.
+- Checked both branches for `package.json`, `index.html`, `src/App.tsx`, `app/page.tsx`, `src/main.tsx`, and `supabase/config.toml`. These paths were not found on either branch.
+- `README.md` on both branches contains only the repository title. This confirms that the complete app source was not found at these common paths in the two enumerated branches. It does **not** prove that no source exists in another repository, an unenumerated GitHub location, a differently named path, or the original local workspace.
+
+### Live Branch module lifecycle RPC — confirmed approval bypass
+Read-only inspection of `pg_get_functiondef`, function ACLs, and `pg_policies` confirmed:
+- `private.branch_module_set_enabled(uuid,boolean,text)` is SECURITY DEFINER, has a pinned search_path, and is directly executable by `authenticated`.
+- `public.branch_module_set_enabled(...)` is a SECURITY INVOKER wrapper and is also executable by `authenticated`.
+- The private implementation checks `auth.uid()`, `module.manage` permission, a reason of at least five characters, and mandatory dependencies when enabling.
+- It directly inserts/updates `organization_modules` and writes `module_audit_logs`. It does **not** create an approval request, require an independent approver, verify an approved request, or enforce requester/approver separation.
+- Disable does not check whether another active module depends on Branch Management. The implementation also has no general protected-core-module rule (the current target is Branch Management, but the lifecycle pattern is unsafe to reuse for core modules).
+- The function is therefore an authenticated direct path around the proposed approval workflow. The presence of the new approval tables and read-only RLS policies does not close this bypass.
+
+Other inspected Branch SECURITY DEFINER routines (for example branch create/update/status) check authentication and organization/branch permissions and write audit rows. Their wrappers are SECURITY INVOKER. The inspected approval, module-change, organization-module, and module-audit tables expose scoped SELECT policies; no client-side write policy was found in that subset. This is not a complete audit of every table or every RPC.
+
+### Required remediation — do not hot-fix production yet
+1. Design the replacement request → independent approval → apply-approved-change RPC flow and test it in staging.
+2. Make the apply function re-check current actor authorization, request status/expiry, non-self-approval, organization lock, module status, mandatory dependencies, reverse dependencies, dependency cycles, and protected-core rules inside one transaction.
+3. Only after the replacement UI/API is deployed and tested, remove authenticated execution from the legacy direct lifecycle path and retire the old wrapper in a coordinated migration. Do not revoke it now because a client may still depend on it.
+4. Preserve all module data on disable; change lifecycle status only and retain audit history.
+
+**No production change was made during this follow-up.** The checks were read-only; no migration, grant, policy, function, Auth, role, or data mutation was executed.
