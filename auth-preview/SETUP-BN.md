@@ -53,3 +53,6 @@
 - Phone Auth চালু এবং একটি SMS provider সঠিকভাবে configured থাকতে হবে।
 - বাস্তব পরীক্ষার জন্য আলাদা test email/phone ব্যবহার করুন; production owner account-এর phone পরিবর্তন করে পরীক্ষা করবেন না।
 - Password, OTP বা recovery code কখনো chat-এ পাঠাবেন না।
+
+
+Deployment workflow feature branch-এর push-এ চলে, তবে repository variable `ENABLE_AUTH_PREVIEW_DEPLOY=true` না থাকলে job deploy করবে না। এটি `main` branch-এ merge বা deploy করে না।
