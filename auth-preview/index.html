@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102a43">
+<title>MR RAHAMAN — Business Ecosystem</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+<style>
+:root{--navy:#102a43;--blue:#1769aa;--pale:#eaf4fc;--bg:#f3f6fa;--ink:#172b4d;--muted:#627d98;--line:#d9e2ec;--green:#16845b;--red:#b83227}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif}
+header{background:var(--navy);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{font-size:20px;font-weight:800;letter-spacing:.5px}.brand small{display:block;font-size:11px;font-weight:400;color:#c5d9ed}
+main{max-width:1050px;margin:26px auto;padding:0 14px}.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 6px 22px #102a4310;margin-bottom:16px}
+.auth{max-width:510px;margin:32px auto}.tabs{display:flex;gap:8px;margin:15px 0}.tab{flex:1;border:1px solid var(--line);background:#f7f9fc;padding:10px;border-radius:9px;font-weight:700}.tab.active{background:var(--pale);border-color:var(--blue);color:var(--blue)}
+label{display:block;font-size:13px;font-weight:700;margin:12px 0 5px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;font:inherit;min-width:0}
+.pw{display:flex;gap:6px}.pw input{flex:1}.pw button{border:1px solid var(--line);background:#f7f9fc;border-radius:9px;padding:0 12px}
+button{cursor:pointer;font:inherit}.btn{border:0;border-radius:9px;padding:12px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.alt{background:#e8eef5;color:var(--navy)}.btn.danger{background:var(--red)}.btn:disabled{opacity:.55;cursor:not-allowed}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.actions>*{flex:1}.hint{font-size:12px;color:var(--muted);line-height:1.6}.notice{padding:12px;border-radius:9px;background:var(--pale);font-size:13px;margin:12px 0}.notice.err{background:#fff0ef;color:var(--red)}.notice.ok{background:#eaf8f1;color:var(--green)}
+.hidden{display:none!important}.topline{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.tile{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff}.tile b{display:block;margin-bottom:5px}.muted{color:var(--muted);font-size:13px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
+@media(max-width:620px){.card{padding:17px}.grid{grid-template-columns:1fr 1fr}.auth{margin:18px auto}}
+
+.branch-nav{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;padding:8px;background:#e8eef5;border:1px solid var(--line);border-radius:13px}
+.nav-btn{border:1px solid transparent;background:transparent;color:var(--ink);padding:10px 13px;border-radius:9px;font-weight:700;font-size:13px}
+.nav-btn.active{background:#fff;border-color:var(--line);color:var(--blue);box-shadow:0 2px 8px #102a430d}
+.eyebrow{font-size:10px;letter-spacing:1.4px;font-weight:800;color:var(--blue);margin-bottom:8px}
+.summary-grid,.branch-feature-grid,.module-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+.summary-tile,.feature-tile,.module-tile{border:1px solid var(--line);border-radius:12px;padding:15px;background:#fff;min-width:0}
+.summary-tile>span,.feature-tile>span,.module-tile>span{display:block;font-size:24px;margin-bottom:9px}
+.summary-tile b,.feature-tile b,.module-tile b{display:block;font-size:14px;margin-bottom:6px}
+.summary-tile small,.feature-tile small,.module-tile small,.service-list small{display:block;color:var(--muted);font-size:12px;line-height:1.55}
+.section-heading{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.section-heading h2{margin:0 0 5px}.section-heading p{margin:0}
+.status-chip{font-size:10px;font-weight:800;letter-spacing:.7px;color:#1769aa;background:#eaf4fc;border-radius:20px;padding:7px 10px}
+.roadmap{padding-left:22px}.roadmap li{padding:7px 0}.roadmap span{display:block;color:var(--muted);font-size:12px;margin-top:3px}
+.service-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+.service-list>div{border:1px solid var(--line);border-radius:11px;padding:13px;font-size:18px}
+.service-list b{font-size:13px}.service-list small{margin:5px 0 0 28px}
+@media(max-width:720px){.summary-grid,.branch-feature-grid,.module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.service-list{grid-template-columns:1fr}}
+@media(max-width:420px){.summary-grid,.branch-feature-grid,.module-grid{grid-template-columns:1fr}.nav-btn{flex:1 1 calc(50% - 8px)}}
+
+</style>
+</head>
+<body>
+<header><div class="brand">MR RAHAMAN<small>Business Ecosystem</small></div><span id="headerStatus" class="hint" style="color:#fff">Secure Access</span></header>
+
+<main>
+<section id="authView" class="auth">
+ <div class="card">
+  <h2 style="margin:0">নিরাপদ প্রবেশ</h2>
+  <p class="muted">অ্যাকাউন্ট তৈরি ও প্রবেশের জন্য ইমেইল এবং মোবাইল যাচাই প্রয়োজন।</p>
+  <div class="tabs">
+   <button class="tab active" data-tab="login">লগ ইন</button>
+   <button class="tab" data-tab="register">রেজিস্টার</button>
+   <button class="tab" data-tab="recover">পাসওয়ার্ড রিকভারি</button>
+  </div>
+
+  <div id="loginPane">
+   <label>ইমেইল</label><input id="loginEmail" type="email" autocomplete="email" placeholder="name@example.com">
+   <label>পাসওয়ার্ড</label><div class="pw"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="পাসওয়ার্ড"><button type="button" data-toggle="loginPassword">দেখুন</button></div>
+   <div class="actions"><button class="btn" id="loginBtn">লগ ইন</button></div>
+  </div>
+
+  <div id="registerPane" class="hidden">
+   <label>আপনার নাম</label><input id="regName" autocomplete="name" placeholder="পূর্ণ নাম">
+   <label>ইমেইল</label><input id="regEmail" type="email" autocomplete="email" placeholder="name@example.com">
+   <label>বাংলাদেশি মোবাইল নম্বর</label><input id="regPhone" type="tel" autocomplete="tel" placeholder="01XXXXXXXXX">
+   <label>পাসওয়ার্ড</label><div class="pw"><input id="regPassword" type="password" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"><button type="button" data-toggle="regPassword">দেখুন</button></div>
+   <label>পাসওয়ার্ড নিশ্চিত করুন</label><div class="pw"><input id="regPassword2" type="password" autocomplete="new-password" placeholder="আবার লিখুন"><button type="button" data-toggle="regPassword2">দেখুন</button></div>
+   <div class="actions"><button class="btn" id="registerBtn">রেজিস্টার করুন</button></div>
+   <p class="hint">প্রথমে ইমেইল যাচাই হবে। তারপর লগ ইন করে মোবাইল নম্বরে OTP নিয়ে যাচাই সম্পন্ন করতে হবে। দুইটি যাচাই না হওয়া পর্যন্ত ব্যবসার ড্যাশবোর্ড বন্ধ থাকবে।</p>
+  </div>
+
+  <div id="recoverPane" class="hidden">
+   <label>রেজিস্টার করা ইমেইল</label><input id="recoverEmail" type="email" placeholder="name@example.com">
+   <div class="actions"><button class="btn" id="recoverBtn">রিকভারি ইমেইল পাঠান</button></div>
+   <div id="newPasswordPane" class="hidden">
+    <label>নতুন পাসওয়ার্ড</label><div class="pw"><input id="newPassword" type="password" placeholder="নতুন পাসওয়ার্ড"><button type="button" data-toggle="newPassword">দেখুন</button></div>
+    <div class="actions"><button class="btn" id="savePasswordBtn">নতুন পাসওয়ার্ড সংরক্ষণ</button></div>
+   </div>
+  </div>
+
+  <div id="phoneVerifyPane" class="hidden">
+   <h3>মোবাইল OTP যাচাই</h3>
+   <p class="muted">আপনার অ্যাকাউন্টে মোবাইল নম্বর যুক্ত করে যাচাই করুন।</p>
+   <label>মোবাইল নম্বর (+880)</label><input id="verifyPhone" type="tel" placeholder="+8801XXXXXXXXX">
+   <div class="actions"><button class="btn" id="sendPhoneOtpBtn">OTP পাঠান</button></div>
+   <label>৬ সংখ্যার OTP</label><input id="phoneOtp" inputmode="numeric" maxlength="6" placeholder="123456">
+   <div class="actions"><button class="btn" id="verifyPhoneOtpBtn">OTP যাচাই করুন</button></div>
+  </div>
+
+  <div id="authMessage" class="notice hidden" role="status" aria-live="polite"></div>
+ </div>
+</section>
+
+<section id="appView" class="hidden">
+ <div class="card topline"><div><h1 style="margin:0">MR RAHAMAN Business Dashboard</h1><div class="muted" id="signedInAs"></div></div><button class="btn alt" id="logoutBtn">লগ আউট</button></div>
+ <nav class="branch-nav" aria-label="Business platform navigation">
+  <button class="nav-btn active" data-view="overview">🏠 Overview</button>
+  <button class="nav-btn" data-view="branch">🏢 Digital Branch</button>
+  <button class="nav-btn" data-view="modules">🧩 Business Modules</button>
+  <button class="nav-btn" data-view="platform">⚙️ Platform Services</button>
+ </nav>
+ <section id="view-overview" class="workspace-view">
+  <div class="card"><div class="eyebrow">PLATFORM FOUNDATION</div><h2>স্বাগতম MR RAHAMAN Platform-এ</h2><p class="muted">এটি নতুন Universal Business Platform-এর প্রাথমিক কাঠামো। এখনো কোনো ব্যবসায়িক ডেটা সংরক্ষণ বা পরিবর্তন করা হচ্ছে না।</p>
+   <div class="summary-grid">
+    <div class="summary-tile"><span>🏢</span><b>Organization</b><small>প্রতিষ্ঠান ব্যবস্থাপনা — পরবর্তী ধাপ</small></div>
+    <div class="summary-tile"><span>🏬</span><b>Digital Branch</b><small>ব্রাঞ্চ কাঠামো — প্রাথমিক UI যুক্ত</small></div>
+    <div class="summary-tile"><span>🧩</span><b>12 Business Modules</b><small>মডিউল রেজিস্ট্রি — প্রাথমিক UI যুক্ত</small></div>
+    <div class="summary-tile"><span>🔐</span><b>Security Core</b><small>RLS, roles ও approval — বাস্তবায়ন বাকি</small></div>
+   </div>
+  </div>
+  <div class="card"><h3>পরবর্তী উন্নয়ন ধাপ</h3><ol class="roadmap"><li><b>Branch Registration ও Bangladesh Location</b><span>প্রথম কার্যকর ব্যবসায়িক ফিচার</span></li><li><b>GPS & Map</b><span>ব্রাঞ্চের অবস্থান নির্ধারণ</span></li><li><b>Branch Staff ও Shared Core</b><span>কর্মী, দায়িত্ব ও অনুমতি</span></li></ol></div>
+ </section>
+ <section id="view-branch" class="workspace-view hidden">
+  <div class="card"><div class="eyebrow">DIGITAL BRANCH</div><div class="section-heading"><div><h2>🏢 Digital Branch System</h2><p class="muted">প্রতিষ্ঠানের ব্রাঞ্চ, অবস্থান ও পরিচালনাগত কাঠামো।</p></div><span class="status-chip">UI FOUNDATION</span></div>
+   <div class="branch-feature-grid">
+    <div class="feature-tile"><span>🏢</span><b>Branch Registration</b><small>নতুন ব্রাঞ্চ, নাম, কোড, ধরন ও সম্পাদনা</small></div>
+    <div class="feature-tile"><span>🇧🇩</span><b>Bangladesh Location</b><small>বিভাগ → জেলা → উপজেলা → ইউনিয়ন → গ্রাম/ওয়ার্ড</small></div>
+    <div class="feature-tile"><span>📍</span><b>GPS & Map</b><small>ব্রাঞ্চের স্থানাঙ্ক ও ম্যাপ সংযোগ</small></div>
+    <div class="feature-tile"><span>👥</span><b>Branch Staff</b><small>কর্মী, হাজিরা, দায়িত্ব ও বেতন</small></div>
+    <div class="feature-tile"><span>📊</span><b>Branch Monitoring</b><small>ব্রাঞ্চভিত্তিক কার্যক্রম ও রিপোর্ট</small></div>
+    <div class="feature-tile"><span>🔐</span><b>Branch Security</b><small>অনুমতি, অনুমোদন ও Audit Log</small></div>
+   </div>
+   <div class="notice">এই ধাপে শুধু নেভিগেশন ও UI কাঠামো তৈরি হয়েছে। ব্রাঞ্চ তৈরি/সম্পাদনার ফর্ম, বাংলাদেশ লোকেশন ডেটা, Supabase টেবিল ও RLS এখনো যুক্ত হয়নি।</div>
+  </div>
+ </section>
+ <section id="view-modules" class="workspace-view hidden">
+  <div class="card"><div class="eyebrow">BUSINESS MODULE REGISTRY</div><h2>🧩 Business Modules</h2><p class="muted">১২টি মডিউলের জায়গা ও পরিচিতি শুরু থেকেই থাকবে। প্রতিটি মডিউল নিরাপত্তা ও পরীক্ষা সম্পন্ন হওয়ার পর সক্রিয় হবে।</p>
+   <div class="module-grid">
+    <div class="module-tile"><span>💰</span><b>Finance & Accounting</b><small>হিসাব, আয়-ব্যয়, লাভ-ক্ষতি</small></div>
+    <div class="module-tile"><span>👥</span><b>HR & Payroll</b><small>কর্মী, হাজিরা, বেতন</small></div>
+    <div class="module-tile"><span>📦</span><b>Inventory & Warehouse</b><small>স্টক, গুদাম, মজুত</small></div>
+    <div class="module-tile"><span>🛒</span><b>Purchase & Supplier</b><small>ক্রয়, সরবরাহকারী, বিল</small></div>
+    <div class="module-tile"><span>🤝</span><b>Sales & CRM</b><small>বিক্রয়, গ্রাহক, সম্পর্ক</small></div>
+    <div class="module-tile"><span>🥛</span><b>Dairy Management</b><small>দুধ সংগ্রহ, মান, উৎপাদন</small></div>
+    <div class="module-tile"><span>🏭</span><b>Manufacturing</b><small>উৎপাদন, ব্যাচ, কাঁচামাল</small></div>
+    <div class="module-tile"><span>🌾</span><b>Agriculture</b><small>কৃষি, ফসল ও উপকরণ</small></div>
+    <div class="module-tile"><span>🏪</span><b>Retail & Wholesale</b><small>দোকান, পাইকারি ও খুচরা</small></div>
+    <div class="module-tile"><span>🧰</span><b>Service & NGO Management</b><small>সেবা, প্রকল্প ও উপকারভোগী</small></div>
+    <div class="module-tile"><span>🤖</span><b>AI Business Assistant</b><small>বিশ্লেষণ, পূর্বাভাস ও পরামর্শ</small></div>
+    <div class="module-tile"><span>🛡️</span><b>Admin & Security Management</b><small>ব্যবহারকারী, অনুমতি, অনুমোদন</small></div>
+   </div>
+  </div>
+ </section>
+ <section id="view-platform" class="workspace-view hidden">
+  <div class="card"><div class="eyebrow">SHARED PLATFORM SERVICES</div><h2>⚙️ Platform Services</h2><div class="service-list">
+   <div>🌐 <b>Organization & Multi-Tenant Core</b><small>একাধিক প্রতিষ্ঠানের তথ্য বিচ্ছিন্ন রাখা</small></div>
+   <div>🖥️ <b>Central Dashboard & Business Intelligence</b><small>সব ব্রাঞ্চের সার্বিক চিত্র ও বিশ্লেষণ</small></div>
+   <div>📋 <b>Workflow & Task Management</b><small>কাজ বণ্টন, দায়িত্ব ও অনুমোদন প্রবাহ</small></div>
+   <div>🔔 <b>Notification & Communication</b><small>সতর্কতা ও যোগাযোগ</small></div>
+   <div>💾 <b>Backup & Disaster Recovery</b><small>ব্যাকআপ ও পুনরুদ্ধার পরিকল্পনা</small></div>
+   <div>🔌 <b>Integration & API Center</b><small>ব্যাংক, SMS, পেমেন্ট, IoT সংযোগ</small></div>
+   <div>⚙️ <b>System Health & Performance</b><small>ত্রুটি, API ও ডেটাবেস পর্যবেক্ষণ</small></div>
+   <div>🔄 <b>Data Portability & Module Versioning</b><small>ডেটা স্থানান্তর ও নিয়ন্ত্রিত আপডেট</small></div>
+  </div><div class="notice">এগুলো পরিকল্পিত Shared Services। এখনো কোনো বাহ্যিক সেবা বা ডেটাবেস সংযোগ সক্রিয় করা হয়নি।</div></div>
+ </section>
+</section>
+
+<section id="accessPendingView" class="hidden">
+ <div class="card">
+  <div class="eyebrow">IDENTITY VERIFICATION COMPLETE</div>
+  <h1 style="margin-top:0">আপনার অ্যাকাউন্ট যাচাই সম্পন্ন</h1>
+  <p class="muted">ইমেইল ও মোবাইল নম্বর—দুটিই যাচাই হয়েছে। তবে Platform Owner / Organization Membership এখনো নিরাপদভাবে provision করা হয়নি। তাই ব্যবসার Dashboard আপাতত বন্ধ রাখা হয়েছে।</p>
+  <div class="notice">এটি Authentication পরীক্ষা সফল হওয়ার পরের নিরাপদ অবস্থা; এটি Owner অনুমোদন বা ব্যবসায়িক ডেটায় প্রবেশাধিকার নয়।</div>
+  <p class="muted" id="verifiedAccountEmail"></p>
+  <h3>পাসওয়ার্ড পরিবর্তন</h3>
+  <label>নতুন পাসওয়ার্ড</label><div class="pw"><input id="changePassword1" type="password" autocomplete="new-password" minlength="8" placeholder="কমপক্ষে ৮ অক্ষর"><button type="button" data-toggle="changePassword1">দেখুন</button></div>
+  <label>নতুন পাসওয়ার্ড নিশ্চিত করুন</label><div class="pw"><input id="changePassword2" type="password" autocomplete="new-password" minlength="8" placeholder="আবার লিখুন"><button type="button" data-toggle="changePassword2">দেখুন</button></div>
+  <div class="actions"><button class="btn" id="changePasswordBtn">পাসওয়ার্ড পরিবর্তন</button><button class="btn alt" id="pendingLogoutBtn">লগ আউট</button></div>
+  <div id="pendingMessage" class="notice hidden" role="status" aria-live="polite"></div>
+ </div>
+</section>
+</main>
+<footer>MR RAHAMAN · Business Ecosystem · Authentication Preview</footer>
+
+<script>
+/* MR RAHAMAN dedicated project only. Publishable key is intended for browser use.
+   NEVER place service_role / sb_secret keys in frontend code. */
+const SUPABASE_URL = "https://pojhrvmuamdejlutxpng.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_T1HsW9dErikWZyt0jHammA_TUgg4PTT";
+const supabaseReady = !!window.supabase &&
+  SUPABASE_PUBLISHABLE_KEY.startsWith("sb_") &&
+  !SUPABASE_PUBLISHABLE_KEY.includes("PASTE_");
+const sb = supabaseReady
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY)
+  : null;
+
+const $ = id => document.getElementById(id);
+let currentUser = null;
+let recoveryMode = false;
+
+function showMessage(text, kind="info") {
+  const el=$("authMessage"); el.textContent=text;
+  el.className="notice"+(kind==="error"?" err":kind==="ok"?" ok":"");
+  el.classList.remove("hidden");
+}
+function hideMessage(){ $("authMessage").classList.add("hidden"); }
+function normalizeBDPhone(raw) {
+  let p=String(raw||"").replace(/[\s()-]/g,"");
+  if(/^01[3-9]\d{8}$/.test(p)) return "+88"+p;
+  if(/^8801[3-9]\d{8}$/.test(p)) return "+"+p;
+  if(/^\+8801[3-9]\d{8}$/.test(p)) return p;
+  return null;
+}
+function showTab(tab) {
+  ["login","register","recover"].forEach(t=>{
+    $(t+"Pane").classList.toggle("hidden",t!==tab);
+    document.querySelector(`[data-tab="${t}"]`).classList.toggle("active",t===tab);
+  });
+  $("phoneVerifyPane").classList.add("hidden"); hideMessage();
+}
+document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
+document.querySelectorAll("[data-toggle]").forEach(b=>b.addEventListener("click",()=>{
+  const el=$(b.dataset.toggle); el.type=el.type==="password"?"text":"password";
+  b.textContent=el.type==="password"?"দেখুন":"লুকান";
+}));
+
+
+// Local navigation only: no business data is read or written in this UI foundation.
+document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener("click",()=>{
+  const target=button.dataset.view;
+  document.querySelectorAll(".workspace-view").forEach(view=>view.classList.toggle("hidden",view.id!=="view-"+target));
+  document.querySelectorAll("[data-view]").forEach(item=>item.classList.toggle("active",item===button));
+}));
+
+function displayApp(user) {
+  currentUser=user;
+  const emailOK=!!user?.email_confirmed_at;
+  const phoneOK=!!user?.phone_confirmed_at;
+  const fullyVerified=emailOK && phoneOK;
+  // Authentication success is NOT Platform Owner authorization.
+  // Until the controlled Owner bootstrap + membership gate exists, keep all business views closed.
+  $("authView").classList.toggle("hidden",fullyVerified);
+  $("appView").classList.add("hidden");
+  $("accessPendingView").classList.toggle("hidden",!fullyVerified);
+  $("headerStatus").textContent=fullyVerified?"Identity Verified · Access Pending":"Verification Required";
+  $("signedInAs").textContent=user?.email||"";
+  $("verifiedAccountEmail").textContent=user?.email ? `যাচাইকৃত অ্যাকাউন্ট: ${user.email}` : "";
+  $("phoneVerifyPane").classList.toggle("hidden",!user || !emailOK || phoneOK);
+  if(user && emailOK && !phoneOK) {
+    const pending=user.user_metadata?.phone_pending || "";
+    $("verifyPhone").value=user.phone || pending;
+    showMessage("ইমেইল যাচাই হয়েছে। এখন মোবাইল OTP যাচাই সম্পন্ন করুন।");
+  } else if(user && !emailOK) {
+    showMessage("ইমেইল যাচাই এখনো সম্পন্ন হয়নি। আপনার ইমেইলের verification link খুলুন।");
+  }
+}
+async function refreshUser() {
+  if(!sb) return;
+  const {data,error}=await sb.auth.getUser();
+  if(error){displayApp(null);return;}
+  displayApp(data.user);
+}
+async function boot() {
+  if(!sb) {
+    showMessage("Supabase key বসানো হয়নি। Project Settings → API থেকে Publishable key নিয়ে কোডে বসান।", "error");
+    return;
+  }
+  const {data:{session}}=await sb.auth.getSession();
+  displayApp(session?.user||null);
+  if(session?.user) await refreshUser();
+  sb.auth.onAuthStateChange((event,session)=>{
+    setTimeout(async()=>{
+      displayApp(session?.user||null);
+      if(session?.user) await refreshUser();
+      if(event==="PASSWORD_RECOVERY") {
+        recoveryMode=true; showTab("recover"); $("newPasswordPane").classList.remove("hidden");
+        showMessage("নতুন পাসওয়ার্ড সেট করুন।");
+      }
+    },0);
+  });
+}
+
+$("registerBtn").onclick=async()=>{
+  hideMessage();
+  const name=$("regName").value.trim(), email=$("regEmail").value.trim();
+  const phone=normalizeBDPhone($("regPhone").value);
+  const password=$("regPassword").value, confirm=$("regPassword2").value;
+  if(!name||!email||!phone) return showMessage("নাম, সঠিক ইমেইল ও বাংলাদেশি মোবাইল নম্বর দিন।","error");
+  if(password.length<8) return showMessage("পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।","error");
+  if(password!==confirm) return showMessage("দুইটি পাসওয়ার্ড এক নয়।","error");
+  const {error}=await sb.auth.signUp({
+    email,password,
+    options:{emailRedirectTo:location.origin+location.pathname,
+      data:{full_name:name,phone_pending:phone}}
+  });
+  if(error) return showMessage(error.message,"error");
+  $("verifyPhone").value=phone;
+  showMessage("রেজিস্ট্রেশন অনুরোধ হয়েছে। ইমেইলে পাঠানো verification link খুলুন। এরপর লগ ইন করে মোবাইল OTP যাচাই করুন।","ok");
+};
+
+$("loginBtn").onclick=async()=>{
+  hideMessage();
+  const email=$("loginEmail").value.trim(),password=$("loginPassword").value;
+  if(!email||!password) return showMessage("ইমেইল ও পাসওয়ার্ড দিন।","error");
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error) return showMessage(error.message,"error");
+  displayApp(data.user);
+  await refreshUser();
+};
+
+$("sendPhoneOtpBtn").onclick=async()=>{
+  hideMessage();
+  const phone=normalizeBDPhone($("verifyPhone").value);
+  if(!phone) return showMessage("সঠিক বাংলাদেশি নম্বর দিন: 01XXXXXXXXX অথবা +8801XXXXXXXXX","error");
+  const {error}=await sb.auth.updateUser({phone});
+  if(error) return showMessage(error.message,"error");
+  $("verifyPhone").value=phone;
+  showMessage("SMS Provider সক্রিয় থাকলে OTP পাঠানো হয়েছে। SMS-এর কোড লিখুন; না এলে Admin-কে SMS Provider কনফিগার করতে হবে।","ok");
+};
+
+$("verifyPhoneOtpBtn").onclick=async()=>{
+  hideMessage();
+  const phone=normalizeBDPhone($("verifyPhone").value);
+  const token=$("phoneOtp").value.trim();
+  if(!phone||!/^[0-9]{6}$/.test(token)) return showMessage("সঠিক মোবাইল নম্বর ও ৬ সংখ্যার OTP দিন।","error");
+  const {error}=await sb.auth.verifyOtp({phone,token,type:"phone_change"});
+  if(error) return showMessage(error.message,"error");
+  await refreshUser();
+  showMessage("মোবাইল নম্বর যাচাই সম্পন্ন হয়েছে।","ok");
+};
+
+$("recoverBtn").onclick=async()=>{
+  const email=$("recoverEmail").value.trim();
+  if(!email) return showMessage("আপনার রেজিস্টার করা ইমেইল দিন।","error");
+  const redirectTo=location.origin+location.pathname;
+  const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
+  if(error) return showMessage(error.message,"error");
+  showMessage("পাসওয়ার্ড রিকভারি ইমেইল পাঠানো হয়েছে। ইমেইলের লিংক খুলুন।","ok");
+};
+
+$("savePasswordBtn").onclick=async()=>{
+  const password=$("newPassword").value;
+  if(password.length<8) return showMessage("নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন।","error");
+  const {error}=await sb.auth.updateUser({password});
+  if(error) return showMessage(error.message,"error");
+  recoveryMode=false; $("newPasswordPane").classList.add("hidden");
+  showMessage("পাসওয়ার্ড পরিবর্তন হয়েছে। নিরাপদে লগ ইন করুন।","ok");
+};
+
+$("changePasswordBtn").onclick=async()=>{
+  const p1=$("changePassword1").value, p2=$("changePassword2").value;
+  const box=$("pendingMessage"); box.className="notice"; box.classList.remove("hidden");
+  if(p1.length<8){box.textContent="নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন।";box.classList.add("err");return;}
+  if(p1!==p2){box.textContent="দুইটি পাসওয়ার্ড এক নয়।";box.classList.add("err");return;}
+  const {error}=await sb.auth.updateUser({password:p1});
+  if(error){box.textContent=error.message;box.classList.add("err");return;}
+  $("changePassword1").value=""; $("changePassword2").value="";
+  box.textContent="পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে।";box.classList.add("ok");
+};
+$("pendingLogoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
+$("logoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
+boot();
+</script>
+</body>
+</html>
