@@ -1,0 +1,80 @@
+# Authentication Preview & Recovered Bundle Security Review — v1
+
+**Project:** MR RAHAMAN Business Ecosystem  
+**Supabase project:** `pojhrvmuamdejlutxpng`  
+**Repository branch reviewed:** `feature/authentication-v1`  
+**Review mode:** static source inspection + read-only live Supabase metadata/migration inspection  
+**Status:** findings only; no application deployment, SQL execution, database mutation, Auth setting change, or user/role provisioning performed.
+
+## 1. Executive result
+
+The recovered ZIPs are a **partial recovery**, not the complete application source. They contain a static HTML authentication preview, a draft 16-table core schema, security design notes, and read-only SQL checks. They do not contain the complete web/Android application, the full migration source history, the full Branch API implementation, or an Owner bootstrap implementation.
+
+The authentication preview is not ready for deployment under the current user requirement because it requires both email and phone verification. The user has explicitly selected **Phone OTP OFF**. More importantly, the preview does not perform a database-backed Platform Owner or active organization membership/permission check. It keeps the business workspace hidden, but that is not a complete authorization gate.
+
+## 2. Recovered ZIP contents and integrity boundary
+
+Reviewed artifacts:
+- `MR_RAHAMAN_Authentication_Preview_v1.zip`: `index.html` and `SETUP-BN.md`.
+- `MR_RAHAMAN_Business_Ecosystem_Recovered_Source_Bundle.zip`: draft core schema, RLS/permission design, schema review, read-only preflight and post-migration verification SQL, README, and manifest.
+- `mr_rahaman_phase2_security_schema_bundle_v1_1.zip`: duplicate schema/security design artifacts.
+
+The bundle manifest and README explicitly identify the archive as `partial_recovery_not_complete_application_source`. The archive excludes complete frontend/Android source, full migration history, current schema/function/policy export, Owner bootstrap implementation, and build/test/deployment configuration. The separate Muhaimin Dairy archive is not part of this project and must not be mixed into this repository.
+
+## 3. Authentication preview findings
+
+### Positive findings
+- Uses the target Supabase project URL and a browser-safe publishable key; no `service_role` or secret key was found in the preview.
+- Supabase JS CDN is pinned to `2.118.0`.
+- Supports email/password sign-up and login, email confirmation redirect, password recovery, and password update.
+- Inline JavaScript syntax check passed in the recovered review.
+- The UI comments correctly state that authentication is not the same as Platform Owner authorization.
+
+### Blocking issues
+1. **Phone OTP conflicts with the approved account policy.** The page includes phone registration, `updateUser({phone})`, and `verifyOtp({phone, token, type: "phone_change"})`. The access condition is `email_confirmed_at && phone_confirmed_at`. This contradicts Phone OTP OFF and must be removed from the authentication flow before deployment.
+2. **No actual Platform Owner authorization check.** The `displayApp(user)` function only checks email and phone confirmation. It does not query `platform_admin_roles`, verify an active `organization_members` row, or check a role permission. The `accessPendingView` is a UI holding screen, not proof of authorization.
+3. **No owner bootstrap or organization membership provisioning.** The preview has no secure bootstrap RPC or trusted server-side provisioning flow. A verified Auth account alone must never receive platform or organization privileges.
+4. **Public signup abuse controls remain unverified.** CAPTCHA/abuse protection, rate limits, redirect allowlist, email delivery, and password protection settings need review before enabling public signup.
+5. **The preview does not load business data.** Its workspace navigation is local UI only. It must not be described as a functioning business dashboard.
+
+### Required authentication design
+- Email/password authentication only for v1; keep Phone Auth/OTP disabled.
+- After sign-in, resolve the user through trusted database authorization: active Platform Owner/Platform Admin grant where required, and/or active organization membership plus role-permission checks for tenant features.
+- Deny by default if the authorization query/function fails, returns no eligible role, or the organization is suspended.
+- Do not trust user-editable `user_metadata` for authorization.
+- Keep platform roles separate from organization roles.
+- Owner bootstrap must be one-time, server-side, concurrency-safe, audited, and unavailable to public signup.
+- The one-person organization approval problem must be explicitly resolved (break-glass/second approver policy); do not silently allow self-approval.
+
+## 4. Live Supabase metadata cross-check
+
+Read-only inspection of project `pojhrvmuamdejlutxpng` confirmed:
+- 14 recorded migrations, from `20261102112539_core_schema_v1_1_secure_rls_baseline` through `20261102114421_branch_audit_read_api_v1`.
+- The 16 core tables named in the recovered schema draft are present in the live project.
+- Four additional Branch extension tables are present: `branch_profiles`, `branch_operating_hours`, `branch_contacts`, and `branch_settings` (20 public tables in the inspected set).
+- RLS is enabled on the inspected tables.
+- The permission catalogue has 41 rows.
+- The organization, organization-member, platform-admin-role, approval, module-change, organization-module, and module-audit business tables currently have no tenant/owner/workflow rows. This means a real tenant authorization or approval end-to-end test cannot yet be performed.
+- The live migration history is not included in the recovered ZIP. The ZIP's draft schema is therefore not a replacement for the current database or migration history.
+
+This metadata check does not prove all policies, grants, functions, and UI paths are secure. Those require separate targeted read-only inspection and later isolated integration tests.
+
+## 5. Do not execute the recovered core schema draft
+
+The file `mr_rahaman_core_schema_v1_1.sql` is explicitly marked DRAFT / NOT EXECUTED and uses `CREATE TABLE IF NOT EXISTS`. Since the corresponding tables already exist live, rerunning it would not reconcile differences between the draft and the actual tables. It is not an upgrade migration and must not be run against production.
+
+The preflight and post-migration SQL files are SELECT-only diagnostics. The schema review itself says SQL parsing, target FK creation, migration execution, automated integration testing, backup/restore drill, and rollback rehearsal were not verified.
+
+## 6. Required next steps, in order
+
+1. Recover the complete frontend source and the full 14 migration files plus current Edge Functions/API implementation from the original repository/workspace.
+2. Reconcile each migration and the actual live schema/functions/policies/grants; do not infer current implementation from the draft ZIP.
+3. Replace the preview's phone-OTP flow with email-only authentication, preserving password recovery and secure session handling.
+4. Implement and test the database-backed authorization gate and controlled first-owner bootstrap in an isolated staging database.
+5. Resolve the single-owner approval policy and implement approval request/decision/apply as separate audited operations.
+6. Run negative security tests (anonymous, authenticated non-member, cross-organization, suspended member, privilege escalation, self-approval, duplicate/concurrent approval).
+7. Verify backup retention and perform a restore drill in an isolated project before any production migration or release.
+
+## 7. Change and verification statement
+
+No SQL was executed. No production data, schema, RLS policy, grants, Auth provider, secret, or user role was changed. No app deployment or merge to `main` was performed. This document records review findings only.
