@@ -37,3 +37,19 @@
 - Email confirmation এবং SMS provider settings Dashboard-এ যাচাই করতে হবে।
 - বাস্তব email/phone দিয়ে user-এর সম্মতিতে signup ও OTP পরীক্ষা করতে হবে।
 - Owner bootstrap এবং authorization gate আলাদাভাবে review ও approve না হওয়া পর্যন্ত business dashboard চালু করা যাবে না।
+
+## GitHub Pages Preview প্রকাশের প্রস্তুতি
+1. GitHub Repository → Settings → Pages খুলুন।
+2. Build and deployment-এর Source হিসেবে **GitHub Actions** নির্বাচন করুন।
+3. Actions → **Deploy Authentication Preview** খুলুন।
+4. Run workflow নির্বাচন করে branch হিসেবে `feature/authentication-v1` দিন।
+5. Deployment সফল হলে Actions-এর deployment environment-এ প্রকাশিত URL পাওয়া যাবে।
+
+এই workflow শুধু `feature/authentication-v1` branch থেকে manual dispatch-এ চলে। এটি `main` branch-এ deploy বা merge করে না।
+
+## বাস্তব Authentication পরীক্ষার শর্ত
+- প্রকাশিত HTTPS URL Supabase Authentication → URL Configuration-এর Redirect URLs-এ যোগ করতে হবে। বিদ্যমান Site URL অকারণে পরিবর্তন করবেন না।
+- Email confirmation চালু এবং redirect URL allowlisted থাকতে হবে।
+- Phone Auth চালু এবং একটি SMS provider সঠিকভাবে configured থাকতে হবে।
+- বাস্তব পরীক্ষার জন্য আলাদা test email/phone ব্যবহার করুন; production owner account-এর phone পরিবর্তন করে পরীক্ষা করবেন না।
+- Password, OTP বা recovery code কখনো chat-এ পাঠাবেন না।
