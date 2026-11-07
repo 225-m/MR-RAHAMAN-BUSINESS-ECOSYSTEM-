@@ -5,7 +5,8 @@
 ## Scope
 - Email + phone verification ছাড়া UI বন্ধ থাকে।
 - Active `organization_members` membership ছাড়া Organization/Branch data দেখায় না।
-- Organization-scoped RPC ব্যবহার করে branch list/create/update/status, profile, contacts, operating hours, settings ও audit list।
+- Organization-scoped RPC ব্যবহার করে branch list/create/update/status, profile, contacts, operating hours, settings, staff access assign/revoke ও audit list।
+- GPS browser permission নিয়ে latitude/longitude capture এবং Google Maps link তৈরি করে।
 - Frontend-এ কোনো `service_role` বা secret key নেই।
 - কোনো Organization, Owner, Branch বা Staff record নিজে থেকে bootstrap/seed করে না।
 - Database schema/migrations পরিবর্তন করে না।
@@ -33,8 +34,8 @@ All writes must be authorized by the existing database functions and RLS. UI vis
 ## Known limitations before live testing
 - No live Organization/Owner/Branch data is seeded.
 - Branch create/edit/status/profile/contact/hour/settings RPCs are wired but have not been exercised by an authorized real account.
-- GPS coordinates are captured manually; browser geolocation permission and map provider are not yet integrated.
-- Staff assignment/revocation and full permission-management UI are a follow-up slice; backend functions exist but the UI does not expose them yet.
+- GPS browser geolocation ও Google Maps link যুক্ত; map tile/provider embed এখনো নেই.
+- Staff assignment/revocation UI যুক্ত হয়েছে; কর্মী অনুসন্ধান/নির্বাচন, হাজিরা, বেতন এবং পূর্ণ Permission Matrix এখনো বাকি.
 - Bangladesh administrative hierarchy selector, report dashboard, exports and automated notifications are not yet implemented.
 - Do not deploy or apply database changes from this preview without review.
 
