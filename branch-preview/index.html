@@ -23,8 +23,21 @@
 <section id="workspace" class="hidden">
 <div class="card topline"><div><h1 style="margin:0">Branch Management</h1><div id="identity" class="muted"></div></div><div class="row"><select id="orgSelect" aria-label="Organization নির্বাচন"></select><button id="refreshBtn" class="btn alt">Refresh</button><button id="signOut" class="btn danger">লগ আউট</button></div></div>
 <div id="appMessage" class="notice hidden" role="status" aria-live="polite"></div>
+<div class="grid section" id="dashboardCards">
+<div class="card"><div class="muted">মোট ব্রাঞ্চ</div><div id="kpiTotal" style="font-size:28px;font-weight:850">—</div></div>
+<div class="card"><div class="muted">Active</div><div id="kpiActive" style="font-size:28px;font-weight:850;color:var(--green)">—</div></div>
+<div class="card"><div class="muted">Inactive / Suspended</div><div id="kpiOther" style="font-size:28px;font-weight:850">—</div></div>
+<div class="card"><div class="muted">Profile সম্পন্ন</div><div id="kpiProfiles" style="font-size:28px;font-weight:850">—</div></div>
+<div class="card"><div class="muted">দৈনিক মোট Capacity</div><div id="kpiCapacity" style="font-size:28px;font-weight:850">—</div></div>
+<div class="card"><div class="muted">Active Contacts</div><div id="kpiContacts" style="font-size:28px;font-weight:850">—</div></div>
+</div>
 <div class="card">
-<div class="topline"><div><h2 style="margin:0">ব্রাঞ্চ তালিকা</h2><p class="muted">Organization-scoped branch records · RPC + RLS</p></div><button id="newBranchBtn" class="btn">+ নতুন ব্রাঞ্চ</button></div>
+<div class="topline"><div><h2 style="margin:0">ব্রাঞ্চ তালিকা</h2><p class="muted">Organization-scoped branch records · RPC + RLS</p></div><div class="row"><button id="exportBranches" class="btn alt">CSV Export</button><button id="newBranchBtn" class="btn">+ নতুন ব্রাঞ্চ</button></div></div>
+<div class="row section">
+<div class="field"><label for="branchSearch">ব্রাঞ্চ খুঁজুন</label><input id="branchSearch" placeholder="নাম, কোড বা ফোন"></div>
+<div class="field" style="max-width:190px"><label for="branchStatusFilter">Status</label><select id="branchStatusFilter"><option value="">সব Status</option><option value="active">Active</option><option value="inactive">Inactive</option><option value="suspended">Suspended</option></select></div>
+<button id="applyBranchFilter" class="btn alt" style="align-self:end">Search</button>
+</div>
 <div id="branchList" class="grid section"><p class="muted">ব্রাঞ্চ লোড হচ্ছে…</p></div>
 </div>
 <div id="editor" class="card hidden">
@@ -120,16 +133,44 @@ async function boot(){
  $("orgSelect").innerHTML=organizations.map(m=>'<option value="'+esc(m.organization_id)+'">'+esc(m.organization_name||"Organization")+' · '+esc(m.organization_id.slice(0,8))+'</option>').join("");
  activeOrg=organizations[0].organization_id;$("orgSelect").value=activeOrg;setGateState(true);await loadBranches();
 }
+let cachedBranches=[];
+async function loadDashboard(){
+ try{
+  const {data,error}=await sb.from("branch_dashboard_v1").select("*").eq("organization_id",orgId()).maybeSingle();
+  if(error)throw error;
+  const d=data||{};
+  $("kpiTotal").textContent=d.total_branches??0;
+  $("kpiActive").textContent=d.active_branches??0;
+  $("kpiOther").textContent=Number(d.inactive_branches||0)+Number(d.suspended_branches||0);
+  $("kpiProfiles").textContent=d.branches_with_profile??0;
+  $("kpiCapacity").textContent=Number(d.total_daily_capacity||0).toLocaleString("en-BD");
+  $("kpiContacts").textContent=d.active_contacts??0;
+ }catch(e){console.warn("Branch dashboard unavailable",e);["kpiTotal","kpiActive","kpiOther","kpiProfiles","kpiCapacity","kpiContacts"].forEach(id=>$(id).textContent="—");}
+}
 async function loadBranches(){
  $("branchList").innerHTML='<p class="muted">লোড হচ্ছে…</p>';
- try{const rows=await rpc("branch_list_v1",{p_organization_id:orgId(),p_search:null,p_status:null,p_limit:100,p_offset:0});
- if(!rows?.length){$("branchList").innerHTML='<p class="muted">এই Organization-এ কোনো ব্রাঞ্চ পাওয়া যায়নি। অনুমতি থাকলে নতুন ব্রাঞ্চ তৈরি করুন।</p>';return;}
- $("branchList").innerHTML=rows.map(b=>'<article class="branch"><div class="topline"><span class="pill '+esc(b.status)+'">'+esc(b.status)+'</span><span class="muted">'+esc(b.branch_code||"")+'</span></div><h3>'+esc(b.name||b.branch_name||"Unnamed Branch")+'</h3><p class="muted">'+esc(typeof b.address==="string"?b.address:JSON.stringify(b.address||{}))+'</p><div class="actions"><button class="btn alt" data-detail="'+esc(b.id)+'">বিস্তারিত</button><button class="btn alt" data-edit="'+esc(b.id)+'">সম্পাদনা</button><button class="btn alt" data-status="'+esc(b.id)+'" data-next="'+(b.status==="active"?"inactive":"active")+'">'+(b.status==="active"?"Inactive":"Active")+'</button></div></article>').join("");
- $("branchList").querySelectorAll("[data-detail]").forEach(x=>x.addEventListener("click",()=>openDetail(x.dataset.detail)));
- $("branchList").querySelectorAll("[data-edit]").forEach(x=>x.addEventListener("click",()=>editBranch(rows.find(b=>b.id===x.dataset.edit))));
- $("branchList").querySelectorAll("[data-status]").forEach(x=>x.addEventListener("click",()=>changeStatus(x.dataset.status,x.dataset.next)));
+ try{
+  const search=$("branchSearch").value.trim()||null,status=$("branchStatusFilter").value||null;
+  const rows=await rpc("branch_list_v1",{p_organization_id:orgId(),p_search:search,p_status:status,p_limit:100,p_offset:0});
+  cachedBranches=rows||[];
+  if(!cachedBranches.length){$("branchList").innerHTML='<p class="muted">এই ফিল্টারে কোনো ব্রাঞ্চ পাওয়া যায়নি।</p>';await loadDashboard();return;}
+  $("branchList").innerHTML=cachedBranches.map(b=>'<article class="branch"><div class="topline"><span class="pill '+esc(b.status)+'">'+esc(b.status)+'</span><span class="muted">'+esc(b.branch_code||"")+'</span></div><h3>'+esc(b.name||"Unnamed Branch")+'</h3><p class="muted">'+esc(typeof b.address==="string"?b.address:JSON.stringify(b.address||{}))+'</p><div class="actions"><button class="btn alt" data-detail="'+esc(b.id)+'">বিস্তারিত</button><button class="btn alt" data-edit="'+esc(b.id)+'">সম্পাদনা</button><button class="btn alt" data-status="'+esc(b.id)+'" data-next="'+(b.status==="active"?"inactive":"active")+'">'+(b.status==="active"?"Inactive":"Active")+'</button></div></article>').join("");
+  $("branchList").querySelectorAll("[data-detail]").forEach(x=>x.addEventListener("click",()=>openDetail(x.dataset.detail)));
+  $("branchList").querySelectorAll("[data-edit]").forEach(x=>x.addEventListener("click",()=>editBranch(cachedBranches.find(b=>b.id===x.dataset.edit))));
+  $("branchList").querySelectorAll("[data-status]").forEach(x=>x.addEventListener("click",()=>changeStatus(x.dataset.status,x.dataset.next)));
+  await loadDashboard();
  }catch(e){$("branchList").innerHTML='<p class="muted">Branch list load failed.</p>';fail(e);}
 }
+function exportBranchesCsv(){
+ if(!cachedBranches.length){note("Export করার মতো ব্রাঞ্চ নেই।","error");return;}
+ const cols=["branch_code","name","status","phone","address","created_at"];
+ const cell=v=>{let s=typeof v==="object"&&v!==null?JSON.stringify(v):String(v??"");if(/^[=+@\\-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};
+ const csv="\\uFEFF"+[cols.join(","),...cachedBranches.map(row=>cols.map(k=>cell(row[k])).join(","))].join("\\r\\n");
+ const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+ const a=document.createElement("a");a.href=url;a.download="mr-rahaman-branches.csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
+ note("বর্তমান ফিল্টারের Branch List CSV export হয়েছে।","ok");
+}
+
 function openEditor(branch=null){$("editor").classList.remove("hidden");$("branchId").value=branch?.id||"";$("editorTitle").textContent=branch?"ব্রাঞ্চ সম্পাদনা":"নতুন ব্রাঞ্চ";$("branchCode").value=branch?.branch_code||"";$("branchName").value=branch?.name||branch?.branch_name||"";$("branchPhone").value=branch?.phone||"";$("branchAddress").value=typeof branch?.address==="string"?branch.address:JSON.stringify(branch?.address||{});$("editor").scrollIntoView({behavior:"smooth"});}
 function editBranch(branch){openEditor(branch);}
 function closeEditor(){$("editor").classList.add("hidden");$("branchForm").reset();}
@@ -155,7 +196,7 @@ $("staffAccessForm").addEventListener("submit",async e=>{e.preventDefault();try{
 
 document.querySelectorAll("[data-panel]").forEach(b=>b.addEventListener("click",async()=>{document.querySelectorAll("[data-panel]").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".panel").forEach(x=>x.classList.toggle("hidden",x.id!=="panel-"+b.dataset.panel));if(b.dataset.panel==="audit")await loadAudit();if(b.dataset.panel==="staff")await loadStaffAccess();}));
 $("orgSelect").addEventListener("change",async e=>{activeOrg=e.target.value;$("detail").classList.add("hidden");closeEditor();await loadBranches();});
-$("newBranchBtn").addEventListener("click",()=>openEditor());$("closeEditor").addEventListener("click",closeEditor);$("cancelEdit").addEventListener("click",closeEditor);$("closeDetail").addEventListener("click",()=>$("detail").classList.add("hidden"));$("refreshBtn").addEventListener("click",loadBranches);
+$("newBranchBtn").addEventListener("click",()=>openEditor());$("applyBranchFilter").addEventListener("click",loadBranches);$("branchSearch").addEventListener("keydown",e=>{if(e.key==="Enter")loadBranches();});$("branchStatusFilter").addEventListener("change",loadBranches);$("exportBranches").addEventListener("click",exportBranchesCsv);$("closeEditor").addEventListener("click",closeEditor);$("cancelEdit").addEventListener("click",closeEditor);$("closeDetail").addEventListener("click",()=>$("detail").classList.add("hidden"));$("refreshBtn").addEventListener("click",loadBranches);
 async function signOut(){await sb.auth.signOut();location.reload();}$("signOut").addEventListener("click",signOut);$("logoutBtn").addEventListener("click",signOut);$("loginLink").addEventListener("click",()=>location.href="../auth-preview/");
 sb?.auth.onAuthStateChange((_event)=>{setTimeout(()=>boot(),0);});
 boot();
