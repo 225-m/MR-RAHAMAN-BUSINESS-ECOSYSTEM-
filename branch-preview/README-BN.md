@@ -37,8 +37,11 @@ All writes must be authorized by the existing database functions and RLS. UI vis
 - No live Organization/Owner/Branch data is seeded.
 - Branch create/edit/status/profile/contact/hour/settings RPCs are wired but have not been exercised by an authorized real account.
 - GPS browser geolocation ও Google Maps link যুক্ত; map tile/provider embed এখনো নেই.
-- Staff assignment/revocation UI যুক্ত হয়েছে; কর্মী অনুসন্ধান/নির্বাচন, হাজিরা, বেতন এবং পূর্ণ Permission Matrix এখনো বাকি.
-- Bangladesh administrative hierarchy selector, report dashboard, exports and automated notifications are not yet implemented.
+- Staff assignment/revocation UI এবং RLS-নিয়ন্ত্রিত Active Organization Member search/selection যুক্ত হয়েছে। Member search-এর জন্য `member.read` permission লাগতে পারে; Auth user directory-তে কোনো fallback নেই। হাজিরা, বেতন এবং পূর্ণ Permission Matrix এখনো বাকি.
+- Bangladesh administrative hierarchy selector এখনো নেই; Branch address-এ বর্তমানে manual text/JSON দেওয়া যায়।
+- Branch target ও finance-এর জন্য dedicated target/financial tables পাওয়া যায়নি; তাই ওই ফিচারগুলো implement করা হয়নি এবং নতুন schema তৈরি করা হয়নি।
+- Approval request/action tables আছে, কিন্তু Branch target/finance approval flow-এর জন্য যাচাইকৃত public RPC contract পাওয়া যায়নি; তাই approval integration এখনো pending।
+- Branch KPI dashboard এবং filtered Branch CSV export আছে; এগুলো financial report নয়।
 - Do not deploy or apply database changes from this preview without review.
 
 ## Static checks completed (2026-11-08)\n- Inline JavaScript syntax: PASS.\n- Duplicate HTML IDs: none.\n- Required branch RPC names and UI hooks present.\n- No service-role/secret key is embedded.\n\n## Manual test checklist
