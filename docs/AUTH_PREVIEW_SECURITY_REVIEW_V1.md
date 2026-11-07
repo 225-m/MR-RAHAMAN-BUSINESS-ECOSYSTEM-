@@ -105,3 +105,17 @@ Other inspected Branch SECURITY DEFINER routines (for example branch create/upda
 4. Preserve all module data on disable; change lifecycle status only and retain audit history.
 
 **No production change was made during this follow-up.** The checks were read-only; no migration, grant, policy, function, Auth, role, or data mutation was executed.
+
+
+
+## 9. Email-only authentication and database access-gate follow-up (2026-11-08)
+
+- Removed registration phone field, phone verification panel, phone OTP handlers, phone confirmation requirement, and phone-specific user metadata from `auth-preview/index.html`.
+- Registration/login/recovery remain email/password based. Email confirmation is still required.
+- Added a client-side deny-by-default call to `public.current_access_context_v1()`. The preview will show the workspace only when the returned context confirms an active `platform_owner` grant or an active organization membership containing `dashboard.read`.
+- The SQL function is stored as a draft at `supabase/drafts/current_access_context_v1.sql`; it has **not** been applied to Production. Until it is staged and deployed in a non-production project, the RPC call will fail and the preview deliberately keeps the dashboard closed.
+- Live read-only checks confirmed 41 permission rows, 16 platform modules, zero active platform owners, zero organizations, and zero active organization memberships at review time.
+- Existing private authorization helpers `private.is_org_member(uuid)` and `private.has_org_permission(uuid,text)` are present and derive access from active organization membership and role-permission links. No existing public RPC was found that returns the signed-in user's own platform role plus organization permission context, hence the new draft RPC.
+- The current Owner Bootstrap draft remains unsafe/incomplete for use: it expects 40 permissions, enables five module keys (including a business module in place of core services), creates an organization Owner only, and does not grant `platform_owner`. It is not approved for Production execution.
+- The client-side gate is only a navigation/workspace gate. Every business-data operation must continue to be enforced by RLS and permission-checking server RPCs; never rely on this UI gate as the security boundary.
+- No Production SQL, Auth configuration, role, data, deployment, or `main` branch change was made in this follow-up.
