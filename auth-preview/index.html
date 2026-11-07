@@ -49,7 +49,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
 <section id="authView" class="auth">
  <div class="card">
   <h2 style="margin:0">নিরাপদ প্রবেশ</h2>
-  <p class="muted">অ্যাকাউন্ট তৈরি ও প্রবেশের জন্য ইমেইল এবং মোবাইল যাচাই প্রয়োজন।</p>
+  <p class="muted">অ্যাকাউন্ট তৈরি ও প্রবেশের জন্য ইমেইল যাচাই প্রয়োজন।</p>
   <div class="tabs">
    <button class="tab active" data-tab="login">লগ ইন</button>
    <button class="tab" data-tab="register">রেজিস্টার</button>
@@ -65,11 +65,10 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
   <div id="registerPane" class="hidden">
    <label>আপনার নাম</label><input id="regName" autocomplete="name" placeholder="পূর্ণ নাম">
    <label>ইমেইল</label><input id="regEmail" type="email" autocomplete="email" placeholder="name@example.com">
-   <label>বাংলাদেশি মোবাইল নম্বর</label><input id="regPhone" type="tel" autocomplete="tel" placeholder="01XXXXXXXXX">
    <label>পাসওয়ার্ড</label><div class="pw"><input id="regPassword" type="password" autocomplete="new-password" placeholder="কমপক্ষে ৮ অক্ষর"><button type="button" data-toggle="regPassword">দেখুন</button></div>
    <label>পাসওয়ার্ড নিশ্চিত করুন</label><div class="pw"><input id="regPassword2" type="password" autocomplete="new-password" placeholder="আবার লিখুন"><button type="button" data-toggle="regPassword2">দেখুন</button></div>
    <div class="actions"><button class="btn" id="registerBtn">রেজিস্টার করুন</button></div>
-   <p class="hint">প্রথমে ইমেইল যাচাই হবে। তারপর লগ ইন করে মোবাইল নম্বরে OTP নিয়ে যাচাই সম্পন্ন করতে হবে। দুইটি যাচাই না হওয়া পর্যন্ত ব্যবসার ড্যাশবোর্ড বন্ধ থাকবে।</p>
+   <p class="hint">রেজিস্ট্রেশনের পর ইমেইলে পাঠানো verification link খুলুন। ইমেইল যাচাই না হওয়া পর্যন্ত ব্যবসার ড্যাশবোর্ড বন্ধ থাকবে।</p>
   </div>
 
   <div id="recoverPane" class="hidden">
@@ -79,15 +78,6 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
     <label>নতুন পাসওয়ার্ড</label><div class="pw"><input id="newPassword" type="password" placeholder="নতুন পাসওয়ার্ড"><button type="button" data-toggle="newPassword">দেখুন</button></div>
     <div class="actions"><button class="btn" id="savePasswordBtn">নতুন পাসওয়ার্ড সংরক্ষণ</button></div>
    </div>
-  </div>
-
-  <div id="phoneVerifyPane" class="hidden">
-   <h3>মোবাইল OTP যাচাই</h3>
-   <p class="muted">আপনার অ্যাকাউন্টে মোবাইল নম্বর যুক্ত করে যাচাই করুন।</p>
-   <label>মোবাইল নম্বর (+880)</label><input id="verifyPhone" type="tel" placeholder="+8801XXXXXXXXX">
-   <div class="actions"><button class="btn" id="sendPhoneOtpBtn">OTP পাঠান</button></div>
-   <label>৬ সংখ্যার OTP</label><input id="phoneOtp" inputmode="numeric" maxlength="6" placeholder="123456">
-   <div class="actions"><button class="btn" id="verifyPhoneOtpBtn">OTP যাচাই করুন</button></div>
   </div>
 
   <div id="authMessage" class="notice hidden" role="status" aria-live="polite"></div>
@@ -197,19 +187,12 @@ function showMessage(text, kind="info") {
   el.classList.remove("hidden");
 }
 function hideMessage(){ $("authMessage").classList.add("hidden"); }
-function normalizeBDPhone(raw) {
-  let p=String(raw||"").replace(/[\s()-]/g,"");
-  if(/^01[3-9]\d{8}$/.test(p)) return "+88"+p;
-  if(/^8801[3-9]\d{8}$/.test(p)) return "+"+p;
-  if(/^\+8801[3-9]\d{8}$/.test(p)) return p;
-  return null;
-}
 function showTab(tab) {
   ["login","register","recover"].forEach(t=>{
     $(t+"Pane").classList.toggle("hidden",t!==tab);
     document.querySelector(`[data-tab="${t}"]`).classList.toggle("active",t===tab);
   });
-  $("phoneVerifyPane").classList.add("hidden"); hideMessage();
+  hideMessage();
 }
 document.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
 document.querySelectorAll("[data-toggle]").forEach(b=>b.addEventListener("click",()=>{
@@ -228,22 +211,15 @@ document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener
 function displayApp(user) {
   currentUser=user;
   const emailOK=!!user?.email_confirmed_at;
-  const phoneOK=!!user?.phone_confirmed_at;
-  const fullyVerified=emailOK && phoneOK;
-  // Authentication success is NOT Platform Owner authorization.
-  // Until the controlled Owner bootstrap + membership gate exists, keep all business views closed.
-  $("authView").classList.toggle("hidden",fullyVerified);
+  // Email verification authenticates identity only; database authorization remains separate.
+  // Keep business views closed until the database-backed Owner/member gate is implemented.
+  $("authView").classList.toggle("hidden",emailOK);
   $("appView").classList.add("hidden");
-  $("accessPendingView").classList.toggle("hidden",!fullyVerified);
-  $("headerStatus").textContent=fullyVerified?"Identity Verified · Access Pending":"Verification Required";
+  $("accessPendingView").classList.toggle("hidden",!emailOK);
+  $("headerStatus").textContent=emailOK?"Email Verified · Access Pending":"Email Verification Required";
   $("signedInAs").textContent=user?.email||"";
   $("verifiedAccountEmail").textContent=user?.email ? `যাচাইকৃত অ্যাকাউন্ট: ${user.email}` : "";
-  $("phoneVerifyPane").classList.toggle("hidden",!user || !emailOK || phoneOK);
-  if(user && emailOK && !phoneOK) {
-    const pending=user.user_metadata?.phone_pending || "";
-    $("verifyPhone").value=user.phone || pending;
-    showMessage("ইমেইল যাচাই হয়েছে। এখন মোবাইল OTP যাচাই সম্পন্ন করুন।");
-  } else if(user && !emailOK) {
+  if(user && !emailOK) {
     showMessage("ইমেইল যাচাই এখনো সম্পন্ন হয়নি। আপনার ইমেইলের verification link খুলুন।");
   }
 }
@@ -276,19 +252,17 @@ async function boot() {
 $("registerBtn").onclick=async()=>{
   hideMessage();
   const name=$("regName").value.trim(), email=$("regEmail").value.trim();
-  const phone=normalizeBDPhone($("regPhone").value);
   const password=$("regPassword").value, confirm=$("regPassword2").value;
-  if(!name||!email||!phone) return showMessage("নাম, সঠিক ইমেইল ও বাংলাদেশি মোবাইল নম্বর দিন।","error");
+  if(!name||!email) return showMessage("নাম ও সঠিক ইমেইল দিন।","error");
   if(password.length<8) return showMessage("পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের হতে হবে।","error");
   if(password!==confirm) return showMessage("দুইটি পাসওয়ার্ড এক নয়।","error");
   const {error}=await sb.auth.signUp({
     email,password,
     options:{emailRedirectTo:location.origin+location.pathname,
-      data:{full_name:name,phone_pending:phone}}
+      data:{full_name:name}}
   });
   if(error) return showMessage(error.message,"error");
-  $("verifyPhone").value=phone;
-  showMessage("রেজিস্ট্রেশন অনুরোধ হয়েছে। ইমেইলে পাঠানো verification link খুলুন। এরপর লগ ইন করে মোবাইল OTP যাচাই করুন।","ok");
+  showMessage("রেজিস্ট্রেশন অনুরোধ হয়েছে। ইমেইলে পাঠানো verification link খুলে অ্যাকাউন্ট যাচাই করুন।","ok");
 };
 
 $("loginBtn").onclick=async()=>{
@@ -299,27 +273,6 @@ $("loginBtn").onclick=async()=>{
   if(error) return showMessage(error.message,"error");
   displayApp(data.user);
   await refreshUser();
-};
-
-$("sendPhoneOtpBtn").onclick=async()=>{
-  hideMessage();
-  const phone=normalizeBDPhone($("verifyPhone").value);
-  if(!phone) return showMessage("সঠিক বাংলাদেশি নম্বর দিন: 01XXXXXXXXX অথবা +8801XXXXXXXXX","error");
-  const {error}=await sb.auth.updateUser({phone});
-  if(error) return showMessage(error.message,"error");
-  $("verifyPhone").value=phone;
-  showMessage("SMS Provider সক্রিয় থাকলে OTP পাঠানো হয়েছে। SMS-এর কোড লিখুন; না এলে Admin-কে SMS Provider কনফিগার করতে হবে।","ok");
-};
-
-$("verifyPhoneOtpBtn").onclick=async()=>{
-  hideMessage();
-  const phone=normalizeBDPhone($("verifyPhone").value);
-  const token=$("phoneOtp").value.trim();
-  if(!phone||!/^[0-9]{6}$/.test(token)) return showMessage("সঠিক মোবাইল নম্বর ও ৬ সংখ্যার OTP দিন।","error");
-  const {error}=await sb.auth.verifyOtp({phone,token,type:"phone_change"});
-  if(error) return showMessage(error.message,"error");
-  await refreshUser();
-  showMessage("মোবাইল নম্বর যাচাই সম্পন্ন হয়েছে।","ok");
 };
 
 $("recoverBtn").onclick=async()=>{
