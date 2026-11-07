@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102a43">
+<title>MR RAHAMAN — Branch Module Preview</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
+<style>
+:root{--navy:#102a43;--blue:#1769aa;--pale:#eaf4fc;--bg:#f3f6fa;--ink:#172b4d;--muted:#627d98;--line:#d9e2ec;--green:#16845b;--red:#b83227;--amber:#9a6700}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif}header{background:var(--navy);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}.brand{font-size:19px;font-weight:800}.brand small{display:block;font-size:11px;font-weight:400;color:#c5d9ed}main{max-width:1120px;margin:22px auto;padding:0 14px}.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:19px;margin-bottom:15px;box-shadow:0 5px 18px #102a430d}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.between{justify-content:space-between}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.field{display:flex;flex-direction:column;gap:5px;min-width:0;flex:1}label{font-size:12px;font-weight:750}input,select,textarea{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font:inherit;color:var(--ink);background:#fff}textarea{min-height:75px;resize:vertical}button{cursor:pointer;font:inherit}.btn{border:0;border-radius:9px;padding:10px 14px;background:var(--blue);color:#fff;font-weight:750}.btn.alt{background:#e8eef5;color:var(--navy)}.btn.danger{background:var(--red)}.btn:disabled{opacity:.5;cursor:not-allowed}.muted,.hint{color:var(--muted);font-size:12px;line-height:1.55}.notice{padding:12px;border-radius:9px;background:var(--pale);font-size:13px;line-height:1.55;margin:10px 0}.notice.err{background:#fff0ef;color:var(--red)}.notice.ok{background:#eaf8f1;color:var(--green)}.hidden{display:none!important}.tabs{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}.tab{border:1px solid var(--line);background:#f7f9fc;border-radius:9px;padding:9px 12px;font-weight:700}.tab.active{background:var(--pale);border-color:var(--blue);color:var(--blue)}.branch{border:1px solid var(--line);border-radius:12px;padding:13px;background:#fff}.branch h3{margin:0 0 5px}.pill{display:inline-block;border-radius:20px;padding:4px 8px;background:#eaf8f1;color:var(--green);font-size:11px;font-weight:800}.pill.inactive{background:#eef2f6;color:#52606d}.pill.suspended{background:#fff0ef;color:var(--red)}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.actions button{flex:1}.topline{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.section{margin-top:15px}.section h3{margin:0 0 10px}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.list{display:grid;gap:8px}.item{border:1px solid var(--line);border-radius:9px;padding:10px}.small{font-size:12px}.danger-text{color:var(--red)}footer{text-align:center;padding:20px;color:var(--muted);font-size:11px}@media(max-width:720px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:520px){.grid,.two{grid-template-columns:1fr}.card{padding:14px}}
+</style>
+</head>
+<body>
+<header><div class="brand">MR RAHAMAN <small>Business Ecosystem · Branch Module</small></div><span id="sessionLabel" class="hint" style="color:#fff">Secure access</span></header>
+<main>
+<section id="gate" class="card">
+<h2>নিরাপদ ব্রাঞ্চ অ্যাক্সেস</h2>
+<p class="muted">শুধু যাচাইকৃত এবং সক্রিয় Organization Member-এর জন্য। এই Preview কোনো Organization বা Owner নিজে থেকে তৈরি করে না।</p>
+<div id="gateMessage" class="notice">সেশন যাচাই করা হচ্ছে…</div>
+<div class="row"><button id="loginLink" class="btn alt hidden">Authentication Preview খুলুন</button><button id="logoutBtn" class="btn danger hidden">লগ আউট</button></div>
+</section>
+<section id="workspace" class="hidden">
+<div class="card topline"><div><h1 style="margin:0">Branch Management</h1><div id="identity" class="muted"></div></div><div class="row"><select id="orgSelect" aria-label="Organization নির্বাচন"></select><button id="refreshBtn" class="btn alt">Refresh</button><button id="signOut" class="btn danger">লগ আউট</button></div></div>
+<div id="appMessage" class="notice hidden" role="status" aria-live="polite"></div>
+<div class="card">
+<div class="topline"><div><h2 style="margin:0">ব্রাঞ্চ তালিকা</h2><p class="muted">Organization-scoped branch records · RPC + RLS</p></div><button id="newBranchBtn" class="btn">+ নতুন ব্রাঞ্চ</button></div>
+<div id="branchList" class="grid section"><p class="muted">ব্রাঞ্চ লোড হচ্ছে…</p></div>
+</div>
+<div id="editor" class="card hidden">
+<div class="topline"><h2 id="editorTitle" style="margin:0">নতুন ব্রাঞ্চ</h2><button id="closeEditor" class="btn alt">বন্ধ করুন</button></div>
+<form id="branchForm" class="section">
+<input id="branchId" type="hidden">
+<div class="grid">
+<div class="field"><label for="branchCode">Branch Code *</label><input id="branchCode" maxlength="32" required placeholder="BR-001"></div>
+<div class="field"><label for="branchName">ব্রাঞ্চের নাম *</label><input id="branchName" maxlength="120" required placeholder="ঢাকা শাখা"></div>
+<div class="field"><label for="branchPhone">ফোন</label><input id="branchPhone" maxlength="30" placeholder="+8801XXXXXXXXX"></div>
+</div>
+<div class="field section"><label for="branchAddress">ঠিকানা (বাংলাদেশের প্রশাসনিক তথ্যসহ)</label><textarea id="branchAddress" placeholder="বিভাগ, জেলা, উপজেলা, ইউনিয়ন/ওয়ার্ড, গ্রাম/এলাকা"></textarea></div>
+<div class="row actions"><button class="btn" type="submit" id="saveBranch">সংরক্ষণ করুন</button><button class="btn alt" type="button" id="cancelEdit">বাতিল</button></div>
+</form>
+</div>
+<div id="detail" class="card hidden">
+<div class="topline"><div><h2 id="detailTitle" style="margin:0">ব্রাঞ্চ বিস্তারিত</h2><p id="detailSubtitle" class="muted"></p></div><button id="closeDetail" class="btn alt">বন্ধ করুন</button></div>
+<div class="tabs">
+<button class="tab active" data-panel="profile">Profile & GPS</button>
+<button class="tab" data-panel="contacts">Contacts</button>
+<button class="tab" data-panel="hours">Operating Hours</button>
+<button class="tab" data-panel="settings">Settings</button>
+<button class="tab" data-panel="audit">Audit Log</button>
+</div>
+<div id="panel-profile" class="panel">
+<form id="profileForm"><div class="grid">
+<div class="field"><label>Branch Type</label><select id="profileType"><option value="standard">Standard</option><option value="head_office">Head Office</option><option value="warehouse">Warehouse</option><option value="collection_center">Collection Center</option><option value="retail">Retail</option></select></div>
+<div class="field"><label>Manager Name</label><input id="managerName" maxlength="120"></div>
+<div class="field"><label>Manager Email</label><input id="managerEmail" type="email"></div>
+<div class="field"><label>Latitude</label><input id="latitude" type="number" step="any" min="-90" max="90"></div>
+<div class="field"><label>Longitude</label><input id="longitude" type="number" step="any" min="-180" max="180"></div>
+<div class="field"><label>Daily Capacity</label><input id="capacity" type="number" step="0.01" min="0"></div>
+</div><div class="field section"><label>Notes</label><textarea id="profileNotes"></textarea></div><div class="actions"><button class="btn">Profile সংরক্ষণ</button></div></form>
+</div>
+<div id="panel-contacts" class="panel hidden">
+<form id="contactForm"><div class="grid">
+<div class="field"><label>Contact Type</label><select id="contactType"><option value="general">General</option><option value="manager">Manager</option><option value="accounts">Accounts</option><option value="operations">Operations</option><option value="emergency">Emergency</option><option value="other">Other</option></select></div>
+<div class="field"><label>Contact Name *</label><input id="contactName" required maxlength="120"></div>
+<div class="field"><label>Phone</label><input id="contactPhone" maxlength="30"></div>
+<div class="field"><label>Email</label><input id="contactEmail" type="email"></div>
+</div><label class="row section"><input id="contactPrimary" type="checkbox" style="width:auto"> Primary contact</label><div class="actions"><button class="btn">Contact যোগ করুন</button></div></form>
+<div id="contactList" class="list section"></div>
+</div>
+<div id="panel-hours" class="panel hidden">
+<form id="hoursForm"><div class="grid">
+<div class="field"><label>Day</label><select id="dayOfWeek"><option value="0">রবিবার</option><option value="1">সোমবার</option><option value="2">মঙ্গলবার</option><option value="3">বুধবার</option><option value="4">বৃহস্পতিবার</option><option value="5">শুক্রবার</option><option value="6">শনিবার</option></select></div>
+<div class="field"><label>Opening</label><input id="opensAt" type="time"></div><div class="field"><label>Closing</label><input id="closesAt" type="time"></div>
+</div><label class="row section"><input id="isClosed" type="checkbox" style="width:auto"> এই দিন বন্ধ</label><div class="actions"><button class="btn">সময় সংরক্ষণ</button></div></form>
+<div id="hoursList" class="list section"></div>
+</div>
+<div id="panel-settings" class="panel hidden">
+<form id="settingsForm"><div class="two"><div class="field"><label>Setting Key</label><input id="settingKey" required maxlength="80" placeholder="collection_enabled"></div><div class="field"><label>JSON Value</label><input id="settingValue" required placeholder='true বা {"limit":100}'></div></div><div class="actions"><button class="btn">Setting সংরক্ষণ</button></div></form>
+</div>
+<div id="panel-audit" class="panel hidden"><div id="auditList" class="list"></div></div>
+</div>
+</section>
+</main>
+<footer>MR RAHAMAN Business Ecosystem · Branch Module Preview · No production deployment</footer>
+<script>
+/* Dedicated MR RAHAMAN project. Browser-safe publishable key only; never add service_role keys here. */
+const SUPABASE_URL="https://pojhrvmuamdejlutxpng.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY="sb_publishable_T1HsW9dErikWZyt0jHammA_TUgg4PTT";
+const sb=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+const $=id=>document.getElementById(id);
+let user=null, organizations=[], activeOrg=null, activeBranch=null, contacts=[];
+const gate=(message,kind="info")=>{ $("gateMessage").textContent=message;$("gateMessage").className="notice"+(kind==="error"?" err":kind==="ok"?" ok":""); };
+const note=(message,kind="info")=>{ $("appMessage").textContent=message;$("appMessage").className="notice"+(kind==="error"?" err":kind==="ok"?" ok":"");$("appMessage").classList.remove("hidden"); };
+const fail=(error)=>{console.error(error);note(error?.message||"অনুরোধটি সম্পন্ন করা যায়নি। Permission ও connection যাচাই করুন।","error");};
+const orgId=()=>activeOrg;
+const rpc=async(name,args)=>{const {data,error}=await sb.rpc(name,args);if(error)throw error;return data;};
+function esc(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function setGateState(allowed){$("gate").classList.toggle("hidden",allowed);$("workspace").classList.toggle("hidden",!allowed);}
+async function boot(){
+ if(!sb){gate("Supabase client লোড হয়নি। ইন্টারনেট সংযোগ যাচাই করুন।","error");return;}
+ const {data:{user:u},error}=await sb.auth.getUser();
+ if(error||!u){setGateState(false);gate("লগ ইন করা নেই। Authentication Preview থেকে লগ ইন করুন।");$("loginLink").classList.remove("hidden");return;}
+ user=u;$("sessionLabel").textContent="Signed in";$("identity").textContent=u.email||u.id;
+ if(!u.email_confirmed_at||!u.phone_confirmed_at){setGateState(false);gate("ইমেইল ও মোবাইল—দুটির যাচাই সম্পন্ন না হওয়া পর্যন্ত Branch Module বন্ধ থাকবে।","error");$("logoutBtn").classList.remove("hidden");return;}
+ const {data:members,error:memberError}=await sb.from("organization_members").select("organization_id,member_status,role:app_roles(role_key,role_name)").eq("user_id",u.id).eq("member_status","active");
+ if(memberError){setGateState(false);gate("Organization membership যাচাই করা যায়নি: "+memberError.message,"error");$("logoutBtn").classList.remove("hidden");return;}
+ organizations=(members||[]).filter(m=>m.organization_id);
+ if(!organizations.length){setGateState(false);gate("Identity verified, কিন্তু কোনো Active Organization Membership নেই। Owner bootstrap সম্পন্ন না হওয়া পর্যন্ত ব্যবসায়িক ডেটা বন্ধ থাকবে।");$("logoutBtn").classList.remove("hidden");return;}
+ $("orgSelect").innerHTML=organizations.map((m,i)=>'<option value="'+esc(m.organization_id)+'">'+esc(m.role?.role_name||m.role?.role_key||"Organization Member")+' · '+esc(m.organization_id.slice(0,8))+'</option>').join("");
+ activeOrg=organizations[0].organization_id;$("orgSelect").value=activeOrg;setGateState(true);await loadBranches();
+}
+async function loadBranches(){
+ $("branchList").innerHTML='<p class="muted">লোড হচ্ছে…</p>';
+ try{const rows=await rpc("branch_list_v1",{p_organization_id:orgId(),p_search:null,p_status:null,p_limit:100,p_offset:0});
+ if(!rows?.length){$("branchList").innerHTML='<p class="muted">এই Organization-এ কোনো ব্রাঞ্চ পাওয়া যায়নি। অনুমতি থাকলে নতুন ব্রাঞ্চ তৈরি করুন।</p>';return;}
+ $("branchList").innerHTML=rows.map(b=>'<article class="branch"><div class="topline"><span class="pill '+esc(b.status)+'">'+esc(b.status)+'</span><span class="muted">'+esc(b.branch_code||"")+'</span></div><h3>'+esc(b.name||b.branch_name||"Unnamed Branch")+'</h3><p class="muted">'+esc(typeof b.address==="string"?b.address:JSON.stringify(b.address||{}))+'</p><div class="actions"><button class="btn alt" data-detail="'+esc(b.id)+'">বিস্তারিত</button><button class="btn alt" data-edit="'+esc(b.id)+'">সম্পাদনা</button><button class="btn alt" data-status="'+esc(b.id)+'" data-next="'+(b.status==="active"?"inactive":"active")+'">'+(b.status==="active"?"Inactive":"Active")+'</button></div></article>').join("");
+ $("branchList").querySelectorAll("[data-detail]").forEach(x=>x.addEventListener("click",()=>openDetail(x.dataset.detail)));
+ $("branchList").querySelectorAll("[data-edit]").forEach(x=>x.addEventListener("click",()=>editBranch(rows.find(b=>b.id===x.dataset.edit))));
+ $("branchList").querySelectorAll("[data-status]").forEach(x=>x.addEventListener("click",()=>changeStatus(x.dataset.status,x.dataset.next)));
+ }catch(e){$("branchList").innerHTML='<p class="muted">Branch list load failed.</p>';fail(e);}
+}
+function openEditor(branch=null){$("editor").classList.remove("hidden");$("branchId").value=branch?.id||"";$("editorTitle").textContent=branch?"ব্রাঞ্চ সম্পাদনা":"নতুন ব্রাঞ্চ";$("branchCode").value=branch?.branch_code||"";$("branchName").value=branch?.name||branch?.branch_name||"";$("branchPhone").value=branch?.phone||"";$("branchAddress").value=typeof branch?.address==="string"?branch.address:JSON.stringify(branch?.address||{});$("editor").scrollIntoView({behavior:"smooth"});}
+function editBranch(branch){openEditor(branch);}
+function closeEditor(){$("editor").classList.add("hidden");$("branchForm").reset();}
+$("branchForm").addEventListener("submit",async e=>{e.preventDefault();const id=$("branchId").value;let address={};const raw=$("branchAddress").value.trim();if(raw){try{address=JSON.parse(raw);}catch{address={full_address:raw};}}
+ const args={p_organization_id:orgId(),p_branch_code:$("branchCode").value.trim(),p_name:$("branchName").value.trim(),p_address:address,p_phone:$("branchPhone").value.trim()||null};
+ $("saveBranch").disabled=true;try{if(id){await rpc("branch_update",{...args,p_branch_id:id});note("ব্রাঞ্চ আপডেটের অনুরোধ সম্পন্ন হয়েছে।","ok");}else{await rpc("branch_create",args);note("নতুন ব্রাঞ্চ তৈরি হয়েছে।","ok");}closeEditor();await loadBranches();}catch(err){fail(err);}finally{$("saveBranch").disabled=false;}
+});
+async function changeStatus(id,status){const reason=prompt("Status পরিবর্তনের কারণ লিখুন:");if(!reason?.trim())return;try{await rpc("branch_set_status",{p_organization_id:orgId(),p_branch_id:id,p_status:status,p_reason:reason.trim()});note("ব্রাঞ্চের Status পরিবর্তন হয়েছে।","ok");await loadBranches();}catch(e){fail(e);}}
+async function openDetail(id){activeBranch=id;$("detail").classList.remove("hidden");$("detailTitle").textContent="Branch Details";$("detailSubtitle").textContent="Branch ID: "+id;$("detail").scrollIntoView({behavior:"smooth"});try{const d=await rpc("branch_detail_v1",{p_organization_id:orgId(),p_branch_id:id});const profile=d?.profile||d?.branch_profile||{};$("profileType").value=profile.branch_type||"standard";$("managerName").value=profile.manager_name||"";$("managerEmail").value=profile.manager_email||"";$("capacity").value=profile.daily_capacity??"";$("profileNotes").value=profile.notes||"";$("latitude").value=profile.geo_location?.latitude??"";$("longitude").value=profile.geo_location?.longitude??"";await loadContacts();await loadHours();}catch(e){fail(e);}}
+$("profileForm").addEventListener("submit",async e=>{e.preventDefault();try{const lat=$("latitude").value,lon=$("longitude").value;const geo={};if(lat!=="")geo.latitude=Number(lat);if(lon!=="")geo.longitude=Number(lon);await rpc("branch_upsert_profile",{p_organization_id:orgId(),p_branch_id:activeBranch,p_branch_type:$("profileType").value,p_manager_name:$("managerName").value.trim()||null,p_manager_email:$("managerEmail").value.trim()||null,p_geo_location:geo,p_daily_capacity:$("capacity").value===""?null:Number($("capacity").value),p_notes:$("profileNotes").value.trim()||null,p_tags:[]});note("Branch profile সংরক্ষিত হয়েছে।","ok");}catch(e){fail(e);}});
+$("contactForm").addEventListener("submit",async e=>{e.preventDefault();try{await rpc("branch_add_contact",{p_organization_id:orgId(),p_branch_id:activeBranch,p_contact_type:$("contactType").value,p_contact_name:$("contactName").value.trim(),p_phone:$("contactPhone").value.trim()||null,p_email:$("contactEmail").value.trim()||null,p_is_primary:$("contactPrimary").checked});$("contactForm").reset();note("Contact যোগ হয়েছে।","ok");await loadContacts();}catch(e){fail(e);}});
+async function loadContacts(){const d=await rpc("branch_detail_v1",{p_organization_id:orgId(),p_branch_id:activeBranch});contacts=d?.contacts||[];$("contactList").innerHTML=contacts.length?contacts.map(c=>'<div class="item"><b>'+esc(c.contact_name)+'</b><div class="muted">'+esc(c.contact_type)+' · '+esc(c.phone||"")+' · '+esc(c.email||"")+'</div></div>').join(""):'<p class="muted">কোনো Contact নেই।</p>';}
+$("hoursForm").addEventListener("submit",async e=>{e.preventDefault();try{const closed=$("isClosed").checked;await rpc("branch_set_operating_hours",{p_organization_id:orgId(),p_branch_id:activeBranch,p_day_of_week:Number($("dayOfWeek").value),p_is_closed:closed,p_opens_at:closed?null:$("opensAt").value||null,p_closes_at:closed?null:$("closesAt").value||null,p_notes:null});note("Operating hours সংরক্ষিত হয়েছে।","ok");await loadHours();}catch(e){fail(e);}});
+async function loadHours(){const d=await rpc("branch_detail_v1",{p_organization_id:orgId(),p_branch_id:activeBranch});const hours=d?.operating_hours||[];$("hoursList").innerHTML=hours.length?hours.map(h=>'<div class="item">'+["রবি","সোম","মঙ্গল","বুধ","বৃহস্পতি","শুক্র","শনি"][h.day_of_week]+' · '+(h.is_closed?"বন্ধ":esc(h.opens_at||"")+"–"+esc(h.closes_at||""))+'</div>').join(""):'<p class="muted">সময় নির্ধারণ করা হয়নি।</p>';}
+$("settingsForm").addEventListener("submit",async e=>{e.preventDefault();try{const value=JSON.parse($("settingValue").value);await rpc("branch_set_setting",{p_organization_id:orgId(),p_branch_id:activeBranch,p_setting_key:$("settingKey").value.trim(),p_setting_value:value});note("Setting সংরক্ষিত হয়েছে।","ok");}catch(e){fail(e);}});
+async function loadAudit(){try{const rows=await rpc("branch_audit_list_v1",{p_organization_id:orgId(),p_branch_id:activeBranch,p_limit:50,p_before:null});$("auditList").innerHTML=rows?.length?rows.map(r=>'<div class="item"><b>'+esc(r.action)+' · '+esc(r.resource_type)+'</b><div class="muted">'+esc(r.created_at)+' · '+esc(r.actor_user_id||"system")+'</div></div>').join(""):'<p class="muted">Audit record নেই বা দেখার অনুমতি নেই।</p>';}catch(e){fail(e);}}
+document.querySelectorAll("[data-panel]").forEach(b=>b.addEventListener("click",async()=>{document.querySelectorAll("[data-panel]").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".panel").forEach(x=>x.classList.toggle("hidden",x.id!=="panel-"+b.dataset.panel));if(b.dataset.panel==="audit")await loadAudit();}));
+$("orgSelect").addEventListener("change",async e=>{activeOrg=e.target.value;$("detail").classList.add("hidden");closeEditor();await loadBranches();});
+$("newBranchBtn").addEventListener("click",()=>openEditor());$("closeEditor").addEventListener("click",closeEditor);$("cancelEdit").addEventListener("click",closeEditor);$("closeDetail").addEventListener("click",()=>$("detail").classList.add("hidden"));$("refreshBtn").addEventListener("click",loadBranches);
+async function signOut(){await sb.auth.signOut();location.reload();}$("signOut").addEventListener("click",signOut);$("logoutBtn").addEventListener("click",signOut);$("loginLink").addEventListener("click",()=>location.href="../auth-preview/");
+sb?.auth.onAuthStateChange((_event)=>{setTimeout(()=>boot(),0);});
+boot();
+</script>
+</body>
+</html>
