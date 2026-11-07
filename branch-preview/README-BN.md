@@ -54,3 +54,34 @@ All writes must be authorized by the existing database functions and RLS. UI vis
 7. Verify profile/contact/hours/settings writes and corresponding audit records.
 8. Verify branch data cannot be read across organizations or branches.
 9. Test revocation and confirm access is denied after token/session refresh.
+
+
+## সর্বশেষ উন্নয়ন — Bangladesh Location, Target & Finance
+
+### বাস্তবে Development Branch-এ যোগ হয়েছে
+- Offline cascading Bangladesh address selector: বিভাগ → জেলা → উপজেলা।
+- Dataset: ৮ বিভাগ, ৬৪ জেলা, ৪৯৫ উপজেলা; Bangla + English নাম।
+- ইউনিয়ন/ওয়ার্ড/পৌরসভা, এলাকা, পোস্ট কোড ও বিস্তারিত ঠিকানা ঐচ্ছিকভাবে হাতে লেখা যায়।
+- Address বিদ্যমান `branches.address` JSONB-তেই সংরক্ষিত হয়; নতুন Production table প্রয়োজন হয়নি।
+- পুরোনো string/JSON address edit করার সময় অজানা key-সহ তথ্য সংরক্ষণের চেষ্টা করা হয়; parent location বদলালে child selection reset হয়।
+- Dataset source ও CC BY 4.0 attribution bundled JSON-এর ভিতরে আছে।
+
+### Architecture / Draft / Test Plan
+- [Location, Target & Finance Architecture](./ARCHITECTURE-LOCATION-TARGET-FINANCE.md)
+- [Target & Finance SQL Draft — Production-এ Apply করা হয়নি](./migrations/branch-target-finance-draft.sql)
+- [Location, Target & Finance Test Plan](./tests/LOCATION-TARGET-FINANCE-TEST-PLAN.md)
+- [Bangladesh location dataset attribution](./data/bangladesh-admin-hierarchy.json)
+
+### Schema review-এর ফল
+- বর্তমান Schema-তে dedicated branch target বা finance transaction/ledger table নেই।
+- `approval_requests` ও `approval_actions` আছে; তবে Branch Target/Finance-এর জন্য mutation RPC contract এখনো যাচাই হয়নি।
+- `branch.target.read` এবং `branch.target.manage` permission এখনো registry-তে নেই; architecture-এ প্রস্তাব হিসেবে রাখা হয়েছে, role-এ grant করা হয়নি।
+- Finance-এর জন্য existing `finance.read` ও `finance.manage` পাওয়া গেছে।
+- Financial draft প্রথম পর্যায়ে operational cash/income/expense register প্রস্তাব করে; এটি double-entry general ledger নয়।
+
+### সীমাবদ্ধতা ও release gate
+- ইউনিয়ন/ওয়ার্ডের পূর্ণ যাচাইকৃত তালিকা bundled হয়নি; হাতে লিখতে হবে।
+- Target/Finance schema, RPC, approval integration এখনো তৈরি হয়নি।
+- SQL ফাইলটি Draft; এতে শেষে ROLLBACK আছে এবং Production-এ চালানো যাবে না।
+- কোনো Production DB পরিবর্তন, Migration Apply, Merge বা Deployment হয়নি।
+- বাস্তব Owner Account ও Active Organization Member দিয়ে Live Functional Test এখনো বাকি।
