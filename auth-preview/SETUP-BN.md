@@ -54,3 +54,7 @@
 
 
 Deployment workflow feature branch-এর push-এ চলে, তবে repository variable `ENABLE_AUTH_PREVIEW_DEPLOY=true` না থাকলে job deploy করবে না। এটি `main` branch-এ merge বা deploy করে না।
+
+
+## Automated static checks
+GitHub Actions-এর `Authentication Preview Checks` workflow push/PR-এ JavaScript syntax, HTML ID, email-only authentication, database access gate এবং browser secret scan চালায়। Workflow result না পাওয়া পর্যন্ত CI PASS দাবি করা যাবে না।
