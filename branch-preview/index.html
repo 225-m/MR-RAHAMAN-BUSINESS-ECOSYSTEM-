@@ -103,11 +103,13 @@ async function boot(){
  if(error||!u){setGateState(false);gate("লগ ইন করা নেই। Authentication Preview থেকে লগ ইন করুন।");$("loginLink").classList.remove("hidden");return;}
  user=u;$("sessionLabel").textContent="Signed in";$("identity").textContent=u.email||u.id;
  if(!u.email_confirmed_at||!u.phone_confirmed_at){setGateState(false);gate("ইমেইল ও মোবাইল—দুটির যাচাই সম্পন্ন না হওয়া পর্যন্ত Branch Module বন্ধ থাকবে।","error");$("logoutBtn").classList.remove("hidden");return;}
- const {data:members,error:memberError}=await sb.from("organization_members").select("organization_id,member_status,role:app_roles(role_key,role_name)").eq("user_id",u.id).eq("member_status","active");
- if(memberError){setGateState(false);gate("Organization membership যাচাই করা যায়নি: "+memberError.message,"error");$("logoutBtn").classList.remove("hidden");return;}
- organizations=(members||[]).filter(m=>m.organization_id);
+ const {data:members,error:memberError}=await sb.from("organizations").select("id,name,status").eq("status","active");
+ if(memberError){setGateState(false);gate("Organization access যাচাই করা যায়নি: "+memberError.message,"error");$("logoutBtn").classList.remove("hidden");return;}
+ // The organizations SELECT policy calls private.is_org_member(id); this avoids
+ // requiring member.read merely to discover the current user's own organizations.
+ organizations=(members||[]).map(m=>({organization_id:m.id,organization_name:m.name}));
  if(!organizations.length){setGateState(false);gate("Identity verified, কিন্তু কোনো Active Organization Membership নেই। Owner bootstrap সম্পন্ন না হওয়া পর্যন্ত ব্যবসায়িক ডেটা বন্ধ থাকবে।");$("logoutBtn").classList.remove("hidden");return;}
- $("orgSelect").innerHTML=organizations.map((m,i)=>'<option value="'+esc(m.organization_id)+'">'+esc(m.role?.role_name||m.role?.role_key||"Organization Member")+' · '+esc(m.organization_id.slice(0,8))+'</option>').join("");
+ $("orgSelect").innerHTML=organizations.map(m=>'<option value="'+esc(m.organization_id)+'">'+esc(m.organization_name||"Organization")+' · '+esc(m.organization_id.slice(0,8))+'</option>').join("");
  activeOrg=organizations[0].organization_id;$("orgSelect").value=activeOrg;setGateState(true);await loadBranches();
 }
 async function loadBranches(){
