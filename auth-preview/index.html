@@ -150,10 +150,10 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
 
 <section id="accessPendingView" class="hidden">
  <div class="card">
-  <div class="eyebrow">IDENTITY VERIFICATION COMPLETE</div>
-  <h1 style="margin-top:0">আপনার অ্যাকাউন্ট যাচাই সম্পন্ন</h1>
-  <p class="muted">ইমেইল ও মোবাইল নম্বর—দুটিই যাচাই হয়েছে। তবে Platform Owner / Organization Membership এখনো নিরাপদভাবে provision করা হয়নি। তাই ব্যবসার Dashboard আপাতত বন্ধ রাখা হয়েছে।</p>
-  <div class="notice">এটি Authentication পরীক্ষা সফল হওয়ার পরের নিরাপদ অবস্থা; এটি Owner অনুমোদন বা ব্যবসায়িক ডেটায় প্রবেশাধিকার নয়।</div>
+  <div class="eyebrow">EMAIL IDENTITY VERIFIED · ACCESS CHECK</div>
+  <h1 style="margin-top:0">আপনার ইমেইল যাচাই সম্পন্ন</h1>
+  <p class="muted">এখন ডেটাবেস থেকে Platform Owner অথবা সক্রিয় Organization Membership ও প্রয়োজনীয় Permission যাচাই করা হচ্ছে। অনুমোদন না পাওয়া পর্যন্ত ব্যবসার Dashboard বন্ধ থাকবে।</p>
+  <div class="notice">ইমেইল যাচাই মানেই ব্যবসায়িক অনুমতি নয়। Dashboard কেবল ডেটাবেসের সক্রিয় Role ও Permission অনুযায়ী খুলবে।</div>
   <p class="muted" id="verifiedAccountEmail"></p>
   <h3>পাসওয়ার্ড পরিবর্তন</h3>
   <label>নতুন পাসওয়ার্ড</label><div class="pw"><input id="changePassword1" type="password" autocomplete="new-password" minlength="8" placeholder="কমপক্ষে ৮ অক্ষর"><button type="button" data-toggle="changePassword1">দেখুন</button></div>
@@ -179,6 +179,7 @@ const sb = supabaseReady
 
 const $ = id => document.getElementById(id);
 let currentUser = null;
+let currentAccessContext = null;
 let recoveryMode = false;
 
 function showMessage(text, kind="info") {
@@ -226,8 +227,35 @@ function displayApp(user) {
 async function refreshUser() {
   if(!sb) return;
   const {data,error}=await sb.auth.getUser();
-  if(error){displayApp(null);return;}
-  displayApp(data.user);
+  if(error){currentAccessContext=null;displayApp(null);return;}
+  const user=data.user;
+  displayApp(user);
+  currentAccessContext=null;
+  if(!user?.email_confirmed_at) return;
+  const {data:accessData,error:accessError}=await sb.rpc("current_access_context_v1");
+  if(accessError || !accessData) {
+    $("accessPendingView").classList.remove("hidden");
+    $("pendingMessage").textContent="ডেটাবেসের অনুমতি যাচাই সেবা এখনো প্রস্তুত নয়। নিরাপত্তার জন্য Dashboard বন্ধ রাখা হয়েছে।";
+    $("pendingMessage").className="notice err";
+    $("pendingMessage").classList.remove("hidden");
+    return;
+  }
+  currentAccessContext=accessData;
+  const isPlatformOwner=accessData.is_platform_owner===true;
+  const hasDashboardPermission=Array.isArray(accessData.organizations) &&
+    accessData.organizations.some(org=>Array.isArray(org.permissions) &&
+      org.permissions.includes("dashboard.read"));
+  const canEnterWorkspace=isPlatformOwner || hasDashboardPermission;
+  $("appView").classList.toggle("hidden",!canEnterWorkspace);
+  $("accessPendingView").classList.toggle("hidden",canEnterWorkspace);
+  $("headerStatus").textContent=canEnterWorkspace
+    ? (isPlatformOwner ? "Platform Owner Verified" : "Organization Access Verified")
+    : "Email Verified · Access Pending";
+  if(!canEnterWorkspace) {
+    $("pendingMessage").textContent="আপনার সক্রিয় Platform Owner Role অথবা dashboard.read Permission-সহ Organization Membership পাওয়া যায়নি।";
+    $("pendingMessage").className="notice";
+    $("pendingMessage").classList.remove("hidden");
+  }
 }
 async function boot() {
   if(!sb) {
