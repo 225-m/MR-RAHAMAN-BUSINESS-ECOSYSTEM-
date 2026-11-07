@@ -143,8 +143,8 @@ async function loadBangladeshLocations(){
   const json=await res.json();locationTree=Array.isArray(json.data)?json.data:[];
   if(locationTree.length!==8)throw new Error("Expected 8 divisions");
   $("locationDivision").innerHTML='<option value="">বিভাগ নির্বাচন করুন</option>'+locationTree.map(d=>'<option value="'+esc(d.id)+'">'+esc(d.name.local)+' ('+esc(d.name.en)+')</option>').join("");
-  $("locationDivision").addEventListener("change",()=>{const d=locationTree.find(x=>x.id===$("locationDivision").value);$("locationDistrict").innerHTML='<option value="">জেলা নির্বাচন করুন</option>'+(d?.district||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name.local)+' ('+esc(x.name.en)+')</option>').join("");$("locationDistrict").disabled=!d;$("locationUpazila").innerHTML='<option value="">আগে জেলা নির্বাচন করুন</option>';$("locationUpazila").disabled=true;});
-  $("locationDistrict").addEventListener("change",()=>{const d=locationTree.find(x=>x.id===$("locationDivision").value),dist=d?.district?.find(x=>x.id===$("locationDistrict").value);$("locationUpazila").innerHTML='<option value="">উপজেলা নির্বাচন করুন</option>'+(dist?.upazila||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name.local)+' ('+esc(x.name.en)+')</option>').join("");$("locationUpazila").disabled=!dist;});
+  $("locationDivision").addEventListener("change",()=>{delete editingAddressBase.division;delete editingAddressBase.district;delete editingAddressBase.upazila;const d=locationTree.find(x=>x.id===$("locationDivision").value);$("locationDistrict").innerHTML='<option value="">জেলা নির্বাচন করুন</option>'+(d?.district||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name.local)+' ('+esc(x.name.en)+')</option>').join("");$("locationDistrict").disabled=!d;$("locationUpazila").innerHTML='<option value="">আগে জেলা নির্বাচন করুন</option>';$("locationUpazila").disabled=true;});
+  $("locationDistrict").addEventListener("change",()=>{delete editingAddressBase.district;delete editingAddressBase.upazila;const div=locationTree.find(x=>x.id===$("locationDivision").value),dist=div?.district?.find(x=>x.id===$("locationDistrict").value);$("locationUpazila").innerHTML='<option value="">উপজেলা নির্বাচন করুন</option>'+(dist?.upazila||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name.local)+' ('+esc(x.name.en)+')</option>').join("");$("locationUpazila").disabled=!dist;});
  }catch(e){console.warn("Bangladesh location data unavailable",e);$("locationDivision").innerHTML='<option value="">তালিকা লোড হয়নি — হাতে ঠিকানা লিখুন</option>';note("বাংলাদেশের Location Dataset লোড হয়নি; বিস্তারিত ঠিকানা হাতে লিখতে পারবেন।","error");}
 }
 const locationReady=loadBangladeshLocations();
@@ -237,6 +237,8 @@ $("branchForm").addEventListener("submit",async e=>{e.preventDefault();const id=
  if(div)address.division={id:div.id,name_bn:div.name.local,name_en:div.name.en};
  if(dist)address.district={id:dist.id,name_bn:dist.name.local,name_en:dist.name.en};
  if(upa)address.upazila={id:upa.id,name_bn:upa.name.local,name_en:upa.name.en};
+ if(div&&!dist)delete address.district;
+ if(dist&&!upa)delete address.upazila;
  if($("locationLocal").value.trim())address.union_or_ward=$("locationLocal").value.trim();
  if($("locationArea").value.trim())address.area=$("locationArea").value.trim();
  if($("locationPostal").value.trim())address.postal_code=$("locationPostal").value.trim();
