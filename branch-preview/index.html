@@ -49,7 +49,20 @@
 <div class="field"><label for="branchName">ব্রাঞ্চের নাম *</label><input id="branchName" maxlength="120" required placeholder="ঢাকা শাখা"></div>
 <div class="field"><label for="branchPhone">ফোন</label><input id="branchPhone" maxlength="30" placeholder="+8801XXXXXXXXX"></div>
 </div>
-<div class="field section"><label for="branchAddress">ঠিকানা (বাংলাদেশের প্রশাসনিক তথ্যসহ)</label><textarea id="branchAddress" placeholder="বিভাগ, জেলা, উপজেলা, ইউনিয়ন/ওয়ার্ড, গ্রাম/এলাকা"></textarea></div>
+<div class="section">
+<h3>🇧🇩 বাংলাদেশের ঠিকানা নির্বাচন</h3>
+<div class="grid">
+<div class="field"><label for="locationDivision">বিভাগ</label><select id="locationDivision"><option value="">বিভাগ নির্বাচন করুন</option></select></div>
+<div class="field"><label for="locationDistrict">জেলা</label><select id="locationDistrict" disabled><option value="">আগে বিভাগ নির্বাচন করুন</option></select></div>
+<div class="field"><label for="locationUpazila">উপজেলা</label><select id="locationUpazila" disabled><option value="">আগে জেলা নির্বাচন করুন</option></select></div>
+<div class="field"><label for="locationLocal">ইউনিয়ন / ওয়ার্ড / পৌরসভা (ঐচ্ছিক)</label><input id="locationLocal" maxlength="120" placeholder="নাম লিখুন"></div>
+<div class="field"><label for="locationArea">গ্রাম / মহল্লা / এলাকা</label><input id="locationArea" maxlength="160" placeholder="এলাকার নাম"></div>
+<div class="field"><label for="locationPostal">পোস্ট কোড</label><input id="locationPostal" maxlength="12" inputmode="numeric" placeholder="যদি জানা থাকে"></div>
+</div>
+<div class="field section"><label for="branchAddress">বাড়ি / রোড / বিস্তারিত ঠিকানা</label><textarea id="branchAddress" placeholder="বাড়ি নম্বর, রোড, বাজার বা পরিচিত স্থান"></textarea></div>
+<p class="hint">বিভাগ–জেলা–উপজেলার তালিকা অ্যাপের সঙ্গে bundled; ইন্টারনেট ছাড়াও নির্বাচন করা যাবে। ইউনিয়ন/ওয়ার্ডের নাম বর্তমানে হাতে লিখুন।</p>
+<p class="hint">তথ্যসূত্র: <a href="https://github.com/open-admin-data/bangladesh-administrative-divisions" target="_blank" rel="noopener noreferrer">Open Admin Data</a> · CC BY 4.0</p>
+</div>
 <div class="row actions"><button class="btn" type="submit" id="saveBranch">সংরক্ষণ করুন</button><button class="btn alt" type="button" id="cancelEdit">বাতিল</button></div>
 </form>
 </div>
@@ -118,11 +131,33 @@ const SUPABASE_URL="https://pojhrvmuamdejlutxpng.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_T1HsW9dErikWZyt0jHammA_TUgg4PTT";
 const sb=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let user=null, organizations=[], activeOrg=null, activeBranch=null, contacts=[];
+let user=null, organizations=[], activeOrg=null, activeBranch=null, contacts=[], locationTree=[], editingAddressBase={};
 const gate=(message,kind="info")=>{ $("gateMessage").textContent=message;$("gateMessage").className="notice"+(kind==="error"?" err":kind==="ok"?" ok":""); };
 const note=(message,kind="info")=>{ $("appMessage").textContent=message;$("appMessage").className="notice"+(kind==="error"?" err":kind==="ok"?" ok":"");$("appMessage").classList.remove("hidden"); };
 const fail=(error)=>{console.error(error);note(error?.message||"অনুরোধটি সম্পন্ন করা যায়নি। Permission ও connection যাচাই করুন।","error");};
 const orgId=()=>activeOrg;
+async function loadBangladeshLocations(){
+ try{
+  const res=await fetch("./data/bangladesh-admin-hierarchy.json",{cache:"force-cache"});
+  if(!res.ok)throw new Error("Location dataset HTTP "+res.status);
+  const json=await res.json();locationTree=Array.isArray(json.data)?json.data:[];
+  if(locationTree.length!==8)throw new Error("Expected 8 divisions");
+  $("locationDivision").innerHTML='<option value="">বিভাগ নির্বাচন করুন</option>'+locationTree.map(d=>'<option value="'+esc(d.id)+'">'+esc(d.name.local)+' ('+esc(d.name.en)+')</option>').join("");
+  $("locationDivision").addEventListener("change",()=>{const d=locationTree.find(x=>x.id===$("locationDivision").value);$("locationDistrict").innerHTML='<option value="">জেলা নির্বাচন করুন</option>'+(d?.district||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name.local)+' ('+esc(x.name.en)+')</option>').join("");$("locationDistrict").disabled=!d;$("locationUpazila").innerHTML='<option value="">আগে জেলা নির্বাচন করুন</option>';$("locationUpazila").disabled=true;});
+  $("locationDistrict").addEventListener("change",()=>{const d=locationTree.find(x=>x.id===$("locationDivision").value),dist=d?.district?.find(x=>x.id===$("locationDistrict").value);$("locationUpazila").innerHTML='<option value="">উপজেলা নির্বাচন করুন</option>'+(dist?.upazila||[]).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name.local)+' ('+esc(x.name.en)+')</option>').join("");$("locationUpazila").disabled=!dist;});
+ }catch(e){console.warn("Bangladesh location data unavailable",e);$("locationDivision").innerHTML='<option value="">তালিকা লোড হয়নি — হাতে ঠিকানা লিখুন</option>';note("বাংলাদেশের Location Dataset লোড হয়নি; বিস্তারিত ঠিকানা হাতে লিখতে পারবেন।","error");}
+}
+const locationReady=loadBangladeshLocations();
+function restoreAddressLocation(address){
+ if(!locationTree.length||!address)return;
+ const idOf=v=>typeof v==="object"?(v.id||""):"";
+ const divId=idOf(address.division),distId=idOf(address.district),upaId=idOf(address.upazila);
+ if(!divId)return;
+ $("locationDivision").value=divId;
+ const div=locationTree.find(x=>x.id===divId);if(!div)return;
+ $("locationDistrict").innerHTML='<option value="">জেলা নির্বাচন করুন</option>'+div.district.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name.local)+' ('+esc(x.name.en)+')</option>').join("");$("locationDistrict").disabled=false;
+ if(distId){$("locationDistrict").value=distId;const dist=div.district.find(x=>x.id===distId);if(dist){$("locationUpazila").innerHTML='<option value="">উপজেলা নির্বাচন করুন</option>'+dist.upazila.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name.local)+' ('+esc(x.name.en)+')</option>').join("");$("locationUpazila").disabled=false;if(upaId)$("locationUpazila").value=upaId;}}
+}
 const rpc=async(name,args)=>{const {data,error}=await sb.rpc(name,args);if(error)throw error;return data;};
 function esc(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function setGateState(allowed){$("gate").classList.toggle("hidden",allowed);$("workspace").classList.toggle("hidden",!allowed);}
@@ -179,10 +214,33 @@ function exportBranchesCsv(){
  note("বর্তমান ফিল্টারের Branch List CSV export হয়েছে।","ok");
 }
 
-function openEditor(branch=null){$("editor").classList.remove("hidden");$("branchId").value=branch?.id||"";$("editorTitle").textContent=branch?"ব্রাঞ্চ সম্পাদনা":"নতুন ব্রাঞ্চ";$("branchCode").value=branch?.branch_code||"";$("branchName").value=branch?.name||branch?.branch_name||"";$("branchPhone").value=branch?.phone||"";$("branchAddress").value=typeof branch?.address==="string"?branch.address:JSON.stringify(branch?.address||{});$("editor").scrollIntoView({behavior:"smooth"});}
+function openEditor(branch=null){
+ $("editor").classList.remove("hidden");$("branchId").value=branch?.id||"";
+ $("editorTitle").textContent=branch?"ব্রাঞ্চ সম্পাদনা":"নতুন ব্রাঞ্চ";
+ $("branchCode").value=branch?.branch_code||"";$("branchName").value=branch?.name||branch?.branch_name||"";$("branchPhone").value=branch?.phone||"";
+ let addr=branch?.address??{};if(typeof addr==="string"){try{addr=JSON.parse(addr);}catch{addr={full_address:addr};}}
+ editingAddressBase=addr&&typeof addr==="object"&&!Array.isArray(addr)?{...addr}:{};
+ $("branchAddress").value=editingAddressBase.full_address||editingAddressBase.address_line||editingAddressBase.formatted_address||"";
+ if(!$("branchAddress").value&&Object.keys(editingAddressBase).length&&!editingAddressBase.division&&!editingAddressBase.district&&!editingAddressBase.upazila)$("branchAddress").value=JSON.stringify(editingAddressBase);
+ $("locationLocal").value=editingAddressBase.union_or_ward||editingAddressBase.locality||"";
+ $("locationArea").value=editingAddressBase.area||editingAddressBase.village||"";
+ $("locationPostal").value=editingAddressBase.postal_code||"";
+ $("locationDivision").value="";$("locationDistrict").innerHTML='<option value="">আগে বিভাগ নির্বাচন করুন</option>';$("locationDistrict").disabled=true;$("locationUpazila").innerHTML='<option value="">আগে জেলা নির্বাচন করুন</option>';$("locationUpazila").disabled=true;
+ const restore=()=>restoreAddressLocation(editingAddressBase);
+ if(locationTree.length)restore();else locationReady.then(restore).catch(()=>{});
+ $("editor").scrollIntoView({behavior:"smooth"});
+}
 function editBranch(branch){openEditor(branch);}
 function closeEditor(){$("editor").classList.add("hidden");$("branchForm").reset();}
-$("branchForm").addEventListener("submit",async e=>{e.preventDefault();const id=$("branchId").value;let address={};const raw=$("branchAddress").value.trim();if(raw){try{address=JSON.parse(raw);}catch{address={full_address:raw};}}
+$("branchForm").addEventListener("submit",async e=>{e.preventDefault();const id=$("branchId").value;let address={...editingAddressBase};const raw=$("branchAddress").value.trim();if(raw){try{const parsed=JSON.parse(raw);if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))address={...address,...parsed};else address.full_address=raw;}catch{address.full_address=raw;}}
+ const div=locationTree.find(x=>x.id===$("locationDivision").value),dist=div?.district?.find(x=>x.id===$("locationDistrict").value),upa=dist?.upazila?.find(x=>x.id===$("locationUpazila").value);
+ if(div)address.division={id:div.id,name_bn:div.name.local,name_en:div.name.en};
+ if(dist)address.district={id:dist.id,name_bn:dist.name.local,name_en:dist.name.en};
+ if(upa)address.upazila={id:upa.id,name_bn:upa.name.local,name_en:upa.name.en};
+ if($("locationLocal").value.trim())address.union_or_ward=$("locationLocal").value.trim();
+ if($("locationArea").value.trim())address.area=$("locationArea").value.trim();
+ if($("locationPostal").value.trim())address.postal_code=$("locationPostal").value.trim();
+ address.country="Bangladesh";
  const args={p_organization_id:orgId(),p_branch_code:$("branchCode").value.trim(),p_name:$("branchName").value.trim(),p_address:address,p_phone:$("branchPhone").value.trim()||null};
  $("saveBranch").disabled=true;try{if(id){await rpc("branch_update",{...args,p_branch_id:id});note("ব্রাঞ্চ আপডেটের অনুরোধ সম্পন্ন হয়েছে।","ok");}else{await rpc("branch_create",args);note("নতুন ব্রাঞ্চ তৈরি হয়েছে।","ok");}closeEditor();await loadBranches();}catch(err){fail(err);}finally{$("saveBranch").disabled=false;}
 });
