@@ -91,3 +91,39 @@ No database changes were made.
 ## 7. Verification statement
 
 This report was committed only to feature/branch-module-v1. No merge to main, deployment, Supabase schema/data/Auth/role change, or repository deletion was performed.
+
+
+## 8. Follow-up implementation progress (2026-11-08)
+
+### Consolidated branch
+- Latest compare: `feature/branch-module-v1` is 48 commits ahead of `main`; it contains the recovered Authentication and Branch/Core artifacts plus follow-up corrections.
+- `feature/authentication-v1` remains preserved; do not merge it separately.
+- Pull Request #1 remains Draft and unmerged.
+
+### Authentication
+- Removed phone registration, phone OTP panel/handlers, phone metadata, and phone-confirmation requirement.
+- Kept email/password signup, login, confirmation, recovery and password change.
+- Added a deny-by-default UI gate that calls `current_access_context_v1()`; the workspace opens only for an active Platform Owner or an active organization membership with `dashboard.read`.
+- Added the SQL RPC as `supabase/drafts/current_access_context_v1.sql`; it is not deployed.
+- Deployment workflow is now manual-only, targets `feature/branch-module-v1`, and requires `ENABLE_AUTH_PREVIEW_DEPLOY=true`. Do not enable this variable before staging/security review.
+
+### Owner bootstrap
+- Preserved the original v1 draft under `supabase/drafts/owner_bootstrap_v1_DO_NOT_APPLY.sql` and removed it from the migrations directory so it cannot be accidentally picked up as an executable migration.
+- Added v2 draft `supabase/drafts/first_platform_owner_bootstrap_v2.sql` using the verified 41-permission catalogue and the six actual `is_core=true` modules.
+- v2 draft separately creates the `platform_owner` platform role and the organization `owner` role, with an audit event in the same transaction.
+- Edge Function draft now calls the v2 RPC. It is not deployed.
+
+### Read-only live checks
+- Permission rows: 41.
+- Platform modules: 16.
+- Actual core modules: 6.
+- Active Platform Owner rows: 0.
+- Organizations: 0.
+- Active organization memberships: 0.
+- Recorded Production migrations: 14 (unchanged during this work).
+- Deployed Edge Functions: 0.
+
+### Verification boundary
+- Static source checks: Phone OTP references absent; email auth and database RPC gate present; duplicate HTML IDs absent; JavaScript DOM ID references resolve.
+- No browser end-to-end test, staging SQL execution, real JWT test, Edge Function deployment, Production migration, Auth setting change, role assignment, merge, or public deployment has been performed.
+- The SQL drafts still require isolated staging execution and independent review before any Production decision.
