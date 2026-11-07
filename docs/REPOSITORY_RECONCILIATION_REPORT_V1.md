@@ -127,3 +127,5 @@ This report was committed only to feature/branch-module-v1. No merge to main, de
 - Static source checks: Phone OTP references absent; email auth and database RPC gate present; duplicate HTML IDs absent; JavaScript DOM ID references resolve.
 - No browser end-to-end test, staging SQL execution, real JWT test, Edge Function deployment, Production migration, Auth setting change, role assignment, merge, or public deployment has been performed.
 - The SQL drafts still require isolated staging execution and independent review before any Production decision.
+
+- Added `.github/workflows/auth-preview-check.yml` to run Node syntax, DOM-ID, email-only, authorization-gate, and browser-secret static checks on feature-branch pushes and PRs. Workflow result must be checked before considering static validation fully complete.
