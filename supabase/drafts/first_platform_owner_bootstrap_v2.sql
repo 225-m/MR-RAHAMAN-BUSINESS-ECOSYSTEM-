@@ -45,7 +45,6 @@ begin
        select 1 from public.platform_admin_roles
        where role_key = 'platform_owner'
          and revoked_at is null
-         and (expires_at is null or expires_at > now())
      ) then
     raise exception 'First-owner bootstrap is closed; existing platform data detected'
       using errcode = '55000';
