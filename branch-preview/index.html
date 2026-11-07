@@ -94,10 +94,18 @@
 </div>
 <div id="panel-audit" class="panel hidden"><div id="auditList" class="list"></div></div>
 <div id="panel-staff" class="panel hidden">
-<form id="staffAccessForm"><div class="two">
-<div class="field"><label>Organization Member User ID (UUID)</label><input id="staffUserId" required placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+<div class="section">
+<div class="two">
+<div class="field"><label for="memberSearch">Active Organization Member খুঁজুন</label><input id="memberSearch" placeholder="User ID-এর অংশ লিখুন"></div>
+<div class="field" style="justify-content:end"><button type="button" id="searchMembers" class="btn alt">Member Search</button></div>
+</div>
+<p class="muted">নিরাপত্তার কারণে Auth user directory বা ইমেইল প্রকাশ করা হয় না। এই তালিকা শুধু RLS-অনুমোদিত Active Organization Member দেখাবে; এর জন্য member.read permission প্রয়োজন।</p>
+<div id="memberSearchResults" class="list"></div>
+</div>
+<form id="staffAccessForm" class="section"><div class="two">
+<div class="field"><label>Selected Member User ID (UUID)</label><input id="staffUserId" required placeholder="Search result থেকে নির্বাচন করুন"></div>
 <div class="field"><label>Branch Access Level</label><select id="staffAccessLevel"><option value="read">Read only</option><option value="standard" selected>Standard</option><option value="manager">Manager</option></select></div>
-</div><p class="muted">শুধু এই Organization-এর বিদ্যমান Active Member-এর User ID দিন। Database function membership ও permission যাচাই করবে।</p><div class="actions"><button class="btn">Branch Access দিন</button></div></form>
+</div><p class="muted">শুধু এই Organization-এর Active Member নির্বাচন করুন। Database function membership ও permission পুনরায় যাচাই করবে।</p><div class="actions"><button class="btn">Branch Access দিন</button></div></form>
 <div id="staffAccessList" class="list section"></div>
 </div>
 </div>
@@ -191,8 +199,21 @@ $("hoursForm").addEventListener("submit",async e=>{e.preventDefault();try{const 
 async function loadHours(){const d=await rpc("branch_detail_v1",{p_organization_id:orgId(),p_branch_id:activeBranch});const hours=d?.operating_hours||[];$("hoursList").innerHTML=hours.length?hours.map(h=>'<div class="item">'+["রবি","সোম","মঙ্গল","বুধ","বৃহস্পতি","শুক্র","শনি"][h.day_of_week]+' · '+(h.is_closed?"বন্ধ":esc(h.opens_at||"")+"–"+esc(h.closes_at||""))+'</div>').join(""):'<p class="muted">সময় নির্ধারণ করা হয়নি।</p>';}
 $("settingsForm").addEventListener("submit",async e=>{e.preventDefault();try{const value=JSON.parse($("settingValue").value);await rpc("branch_set_setting",{p_organization_id:orgId(),p_branch_id:activeBranch,p_setting_key:$("settingKey").value.trim(),p_setting_value:value});note("Setting সংরক্ষিত হয়েছে।","ok");}catch(e){fail(e);}});
 async function loadAudit(){try{const rows=await rpc("branch_audit_list_v1",{p_organization_id:orgId(),p_branch_id:activeBranch,p_limit:50,p_before:null});$("auditList").innerHTML=rows?.length?rows.map(r=>'<div class="item"><b>'+esc(r.action)+' · '+esc(r.resource_type)+'</b><div class="muted">'+esc(r.created_at)+' · '+esc(r.actor_user_id||"system")+'</div></div>').join(""):'<p class="muted">Audit record নেই বা দেখার অনুমতি নেই।</p>';}catch(e){fail(e);}}
+async function searchOrganizationMembers(){
+ const query=$("memberSearch").value.trim().toLowerCase();
+ $("memberSearchResults").innerHTML='<p class="muted">Member list যাচাই হচ্ছে…</p>';
+ try{
+  const {data,error}=await sb.from("organization_members").select("user_id,member_status,role_id").eq("organization_id",orgId()).eq("member_status","active").limit(100);
+  if(error)throw error;
+  const rows=(data||[]).filter(m=>!query||String(m.user_id).toLowerCase().includes(query));
+  $("memberSearchResults").innerHTML=rows.length?rows.map(m=>'<div class="item row between"><div><b>'+esc(m.user_id)+'</b><div class="muted">Active member · Role ID: '+esc(m.role_id||"not assigned")+'</div></div><button type="button" class="btn alt" data-select-member="'+esc(m.user_id)+'">নির্বাচন</button></div>').join(""):'<p class="muted">কোনো matching Active Member পাওয়া যায়নি।</p>';
+  $("memberSearchResults").querySelectorAll("[data-select-member]").forEach(b=>b.addEventListener("click",()=>{$("staffUserId").value=b.dataset.selectMember;note("Member নির্বাচন করা হয়েছে। Branch access দেওয়ার আগে User ID যাচাই করুন।","ok");}));
+ }catch(e){$("memberSearchResults").innerHTML='<p class="notice err">Member search করা যায়নি। এই কাজের জন্য member.read permission প্রয়োজন হতে পারে। Auth user directory-তে fallback করা হবে না।</p>';console.warn("Organization member search blocked",e);}
+}
 async function loadStaffAccess(){try{const {data,error}=await sb.from("member_branch_access").select("id,user_id,access_level,created_at").eq("organization_id",orgId()).eq("branch_id",activeBranch).is("revoked_at",null).order("created_at",{ascending:false});if(error)throw error;$("staffAccessList").innerHTML=data?.length?data.map(m=>'<div class="item"><b>'+esc(m.user_id)+'</b><div class="muted">'+esc(m.access_level)+' · '+esc(m.created_at)+'</div><button class="btn alt" data-revoke="'+esc(m.user_id)+'">Revoke Access</button></div>').join(""):'<p class="muted">কোনো সক্রিয় Branch Staff Access নেই অথবা দেখার অনুমতি নেই।</p>';$("staffAccessList").querySelectorAll("[data-revoke]").forEach(b=>b.addEventListener("click",async()=>{const reason=prompt("Access বাতিলের কারণ লিখুন:");if(!reason?.trim())return;try{await rpc("branch_revoke_member_access",{p_organization_id:orgId(),p_branch_id:activeBranch,p_user_id:b.dataset.revoke,p_reason:reason.trim()});note("Branch access revoke হয়েছে।","ok");await loadStaffAccess();}catch(e){fail(e);}}));}catch(e){fail(e);}}
-$("staffAccessForm").addEventListener("submit",async e=>{e.preventDefault();try{await rpc("branch_assign_member_access",{p_organization_id:orgId(),p_branch_id:activeBranch,p_user_id:$("staffUserId").value.trim(),p_access_level:$("staffAccessLevel").value});$("staffAccessForm").reset();note("Branch access assign হয়েছে।","ok");await loadStaffAccess();}catch(e){fail(e);}});
+$("searchMembers").addEventListener("click",searchOrganizationMembers);
+$("memberSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchOrganizationMembers();}});
+$("staffAccessForm").addEventListener("submit",async e=>{e.preventDefault();const userId=$("staffUserId").value.trim();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)){note("সঠিক User UUID নির্বাচন করুন।","error");return;}try{await rpc("branch_assign_member_access",{p_organization_id:orgId(),p_branch_id:activeBranch,p_user_id:userId,p_access_level:$("staffAccessLevel").value});$("staffAccessForm").reset();$("memberSearchResults").innerHTML="";note("Branch access assign হয়েছে।","ok");await loadStaffAccess();}catch(e){fail(e);}});
 
 document.querySelectorAll("[data-panel]").forEach(b=>b.addEventListener("click",async()=>{document.querySelectorAll("[data-panel]").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".panel").forEach(x=>x.classList.toggle("hidden",x.id!=="panel-"+b.dataset.panel));if(b.dataset.panel==="audit")await loadAudit();if(b.dataset.panel==="staff")await loadStaffAccess();}));
 $("orgSelect").addEventListener("change",async e=>{activeOrg=e.target.value;$("detail").classList.add("hidden");closeEditor();await loadBranches();});
