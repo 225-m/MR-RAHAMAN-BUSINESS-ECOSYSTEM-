@@ -27,7 +27,7 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({error:"Not authorized for first-owner bootstrap"}), {status:403,headers});
 
     const admin = createClient(URL, SERVICE, {auth:{persistSession:false,autoRefreshToken:false}});
-    const {data,error} = await admin.rpc("bootstrap_first_owner_v1",{p_expected_user_id:ALLOWED_USER_ID});
+    const {data,error} = await admin.rpc("bootstrap_first_platform_owner_v2",{p_expected_user_id:ALLOWED_USER_ID});
     if (error) return new Response(JSON.stringify({error:error.message}),{status:409,headers});
     return new Response(JSON.stringify(data),{status:200,headers});
   } catch {
