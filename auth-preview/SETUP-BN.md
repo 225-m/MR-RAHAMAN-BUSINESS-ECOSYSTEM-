@@ -6,13 +6,13 @@
 - Email + password signup
 - Email confirmation link flow
 - Email + password login
-- Bangladesh mobile number validation (+880 format conversion)
-- Logged-in account-এ phone add/change এবং SMS OTP verify (`phone_change`)
 - Password recovery email এবং reset
 - Logged-in অবস্থায় password change
 - Password show/hide
-- Email এবং phone দুটো verify না হওয়া পর্যন্ত business view বন্ধ
-- দুইটি verification সম্পন্ন হলেও Platform Owner/Organization access bootstrap না হওয়া পর্যন্ত dashboard বন্ধ থাকে
+- Phone Auth / SMS OTP UI ও flow সম্পূর্ণ বাদ
+- Email verification-এর পর `current_access_context_v1` RPC দিয়ে Platform Owner অথবা `dashboard.read`-সহ সক্রিয় Organization Membership যাচাইয়ের client gate
+- RPC অনুপস্থিত/ব্যর্থ হলে deny-by-default: Dashboard বন্ধ থাকে
+- এই RPC-এর SQL এখন `supabase/drafts/`-এ আছে; Production-এ প্রয়োগ করা হয়নি
 
 ## গুরুত্বপূর্ণ সীমাবদ্ধতা
 1. Supabase project URL এবং browser-safe Publishable Key বসানো হয়েছে। কোনো `service_role` বা secret key নেই।
@@ -23,13 +23,11 @@
 6. এটি Authentication Preview; production-ready platform নয়।
 
 ## পরীক্ষা
-- Inline JavaScript syntax check: PASS (Node.js parser)
-- Duplicate HTML IDs: NONE
-- JavaScript DOM ID references: ALL FOUND
-- Old MUHAIMIN branding: NONE
-- Old Supabase project reference: NONE
+- Static source scan: Phone OTP UI, handlers, and phone verification conditions absent
+- Database authorization RPC: source drafted, not deployed; end-to-end check NOT YET RUN
+- Email confirmation / login / recovery: browser end-to-end NOT YET VERIFIED
+- Duplicate HTML IDs and JavaScript syntax: require automated re-check before deployment
 - Supabase JS CDN: pinned to 2.118.0
-- Browser end-to-end login/OTP: NOT YET VERIFIED; requires a deployed HTTPS origin, email access, and configured SMS provider.
 
 ## Deploy করার আগে
 - GitHub-এর `feature/authentication-v1` branch তৈরি হয়েছে। এই Preview ফাইলগুলো ওই branch-এ commit করা হবে; `main` branch অপরিবর্তিত থাকবে।
