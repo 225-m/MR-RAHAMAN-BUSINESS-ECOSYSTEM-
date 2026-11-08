@@ -3,19 +3,10 @@
 
 \set ON_ERROR_STOP on
 
-insert into auth.users (id,email,email_confirmed_at,raw_user_meta_data)
-values
- ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','platform-owner@example.test',now(),'{}'),
- ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','platform-admin@example.test',now(),'{}'),
- ('ffffffff-ffff-4fff-8fff-ffffffffffff','support-admin@example.test',now(),'{}'),
- ('99999999-9999-4999-8999-999999999999','expired-admin@example.test',now(),'{}');
-
+-- Reuse the two existing synthetic Customer Auth users so this test does not
+-- create extra customer_profiles or change the rollback test's expected count.
 insert into public.platform_admin_roles(user_id,role_key,revoked_at,expires_at)
-values
- ('dddddddd-dddd-4ddd-8ddd-dddddddddddd','platform_owner',null,null),
- ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','platform_admin',null,null),
- ('ffffffff-ffff-4fff-8fff-ffffffffffff','support_admin',null,null),
- ('99999999-9999-4999-8999-999999999999','platform_admin',null,now() - interval '1 day');
+values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','support_admin',null,null);
 
 do $test$
 begin
@@ -74,7 +65,7 @@ reset role;
 
 -- Support Admin does not automatically receive Customer Verification settings permission.
 set role authenticated;
-set request.jwt.claim.sub = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
+set request.jwt.claim.sub = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 do $test$
 begin
   begin
@@ -85,9 +76,14 @@ begin
 end $test$;
 reset role;
 
+-- Reassign the trusted test identity to an expired platform_admin grant.
+update public.platform_admin_roles
+set role_key='platform_admin', expires_at=now() - interval '1 day'
+where user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
 -- Expired platform_admin grant must not authorize.
 set role authenticated;
-set request.jwt.claim.sub = '99999999-9999-4999-8999-999999999999';
+set request.jwt.claim.sub = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 do $test$
 begin
   begin
@@ -98,9 +94,14 @@ begin
 end $test$;
 reset role;
 
+-- Restore the same grant as active for the authorized Admin checks.
+update public.platform_admin_roles
+set expires_at=null, revoked_at=null
+where user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+
 -- Active Platform Admin can view the controls, but cannot enable an unready feature.
 set role authenticated;
-set request.jwt.claim.sub = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+set request.jwt.claim.sub = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 do $test$
 declare
   v_settings jsonb;
@@ -142,7 +143,7 @@ where feature_key in (
 );
 
 set role authenticated;
-set request.jwt.claim.sub = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+set request.jwt.claim.sub = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 do $test$
 declare
   v_result jsonb;
@@ -190,15 +191,20 @@ begin
   end if;
   select count(*) into v_count
   from private.customer_service_feature_audit
-  where actor_user_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  where actor_user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
   if v_count <> 7 then
     raise exception 'Expected seven audit rows for Admin test actions; found %', v_count;
   end if;
 end $test$;
 
+-- A Customer identity becomes a trusted Platform Owner only through a separate
+-- privileged role grant; Customer profile status alone never grants access.
+insert into public.platform_admin_roles(user_id,role_key,revoked_at,expires_at)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','platform_owner',null,null);
+
 -- Platform Owner is independently authorized, even without organization membership.
 set role authenticated;
-set request.jwt.claim.sub = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+set request.jwt.claim.sub = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 do $test$
 declare
   v_settings jsonb;
