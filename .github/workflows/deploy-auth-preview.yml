@@ -1,12 +1,6 @@
-name: Deploy Authentication Preview
+name: Optional GitHub Pages Deployment (Manual)
 
 on:
-  push:
-    branches:
-      - feature/branch-module-v1
-    paths:
-      - 'auth-preview/**'
-      - '.github/workflows/deploy-auth-preview.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,13 +8,9 @@ permissions:
   pages: write
   id-token: write
 
-concurrency:
-  group: github-pages
-  cancel-in-progress: true
-
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/feature/branch-module-v1'
+    if: github.ref == 'refs/heads/feature/branch-module-v1' && vars.ENABLE_GITHUB_PAGES_DEPLOY == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -31,8 +21,6 @@ jobs:
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload authentication preview
         uses: actions/upload-pages-artifact@v3
