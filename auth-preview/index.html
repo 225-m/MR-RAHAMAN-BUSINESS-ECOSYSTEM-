@@ -75,7 +75,8 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
    <label>রেজিস্টার করা ইমেইল</label><input id="recoverEmail" type="email" placeholder="name@example.com">
    <div class="actions"><button class="btn" id="recoverBtn">রিকভারি ইমেইল পাঠান</button></div>
    <div id="newPasswordPane" class="hidden">
-    <label>নতুন পাসওয়ার্ড</label><div class="pw"><input id="newPassword" type="password" placeholder="নতুন পাসওয়ার্ড"><button type="button" data-toggle="newPassword">দেখুন</button></div>
+    <label>নতুন পাসওয়ার্ড</label><div class="pw"><input id="newPassword" type="password" autocomplete="new-password" minlength="8" placeholder="কমপক্ষে ৮ অক্ষর"><button type="button" data-toggle="newPassword">দেখুন</button></div>
+    <label>নতুন পাসওয়ার্ড নিশ্চিত করুন</label><div class="pw"><input id="newPasswordConfirm" type="password" autocomplete="new-password" minlength="8" placeholder="আবার লিখুন"><button type="button" data-toggle="newPasswordConfirm">দেখুন</button></div>
     <div class="actions"><button class="btn" id="savePasswordBtn">নতুন পাসওয়ার্ড সংরক্ষণ</button></div>
    </div>
   </div>
@@ -267,23 +268,52 @@ async function boot() {
     showMessage("Supabase key বসানো হয়নি। Project Settings → API থেকে Publishable key নিয়ে কোডে বসান।", "error");
     return;
   }
-  const {data:{session}}=await sb.auth.getSession();
-  displayApp(session?.user||null);
-  if(session?.user) await refreshUser();
-  sb.auth.onAuthStateChange((event,session)=>{
-    setTimeout(async()=>{
-      if(event==="PASSWORD_RECOVERY") {
-        recoveryMode=true;
-        displayApp(session?.user||null);
+
+  // Subscribe before getSession(): the PKCE callback can emit PASSWORD_RECOVERY
+  // during client initialization. Registering afterwards can miss the event.
+  sb.auth.onAuthStateChange((event, session) => {
+    setTimeout(async () => {
+      if(event === "PASSWORD_RECOVERY") {
+        recoveryMode = true;
+        displayApp(session?.user || null);
         showTab("recover");
         $("newPasswordPane").classList.remove("hidden");
-        showMessage("নতুন পাসওয়ার্ড সেট করুন।");
+        showMessage("নতুন পাসওয়ার্ড দুইবার লিখে সংরক্ষণ করুন।");
+        $("newPassword").focus();
         return;
       }
-      displayApp(session?.user||null);
-      if(session?.user) await refreshUser();
-    },0);
+
+      if(event === "SIGNED_OUT") {
+        recoveryMode = false;
+        currentAccessContext = null;
+        displayApp(null);
+        showTab("login");
+        return;
+      }
+
+      if(session?.user && !recoveryMode) {
+        await refreshUser();
+      } else if(!session?.user) {
+        displayApp(null);
+      }
+    }, 0);
   });
+
+  const {data, error} = await sb.auth.getSession();
+  if(error) {
+    showMessage(error.message, "error");
+    return;
+  }
+  const session = data?.session;
+  displayApp(session?.user || null);
+  if(session?.user && !recoveryMode) await refreshUser();
+
+  const params = new URLSearchParams(location.search);
+  const callbackError = params.get("error_description") || params.get("error");
+  if(callbackError) {
+    showTab("recover");
+    showMessage(decodeURIComponent(callbackError.replace(/\+/g, " ")), "error");
+  }
 }
 
 $("registerBtn").onclick=async()=>{
@@ -315,7 +345,10 @@ $("loginBtn").onclick=async()=>{
 $("recoverBtn").onclick=async()=>{
   const email=$("recoverEmail").value.trim();
   if(!email) return showMessage("আপনার রেজিস্টার করা ইমেইল দিন।","error");
-  const redirectTo=location.origin+location.pathname;
+  const redirectUrl=new URL(location.href);
+  redirectUrl.search="";
+  redirectUrl.hash="";
+  const redirectTo=redirectUrl.toString();
   const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo});
   if(error) return showMessage(error.message,"error");
   showMessage("পাসওয়ার্ড রিকভারি ইমেইল পাঠানো হয়েছে। ইমেইলের লিংক খুলুন।","ok");
@@ -323,14 +356,37 @@ $("recoverBtn").onclick=async()=>{
 
 $("savePasswordBtn").onclick=async()=>{
   const password=$("newPassword").value;
-  if(password.length<8) return showMessage("নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন।","error");
+  const confirm=$("newPasswordConfirm").value;
+
+  if(!recoveryMode) {
+    return showMessage("রিকভারি লিংক থেকে এই পেজ খুলুন। লিংক মেয়াদোত্তীর্ণ হলে নতুন রিকভারি ইমেইল নিন।","error");
+  }
+  if(password.length<8) {
+    return showMessage("নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন।","error");
+  }
+  if(password!==confirm) {
+    return showMessage("দুইটি নতুন পাসওয়ার্ড এক নয়।","error");
+  }
+
+  const {data:sessionData,error:sessionError}=await sb.auth.getSession();
+  if(sessionError || !sessionData?.session) {
+    return showMessage("রিকভারি সেশন পাওয়া যায়নি বা লিংকের মেয়াদ শেষ। নতুন রিকভারি ইমেইল নিন।","error");
+  }
+
   const {error}=await sb.auth.updateUser({password});
   if(error) return showMessage(error.message,"error");
+
+  $("newPassword").value="";
+  $("newPasswordConfirm").value="";
   recoveryMode=false;
-  await sb.auth.signOut();
+  const {error:signOutError}=await sb.auth.signOut();
+  if(signOutError) {
+    showMessage("পাসওয়ার্ড পরিবর্তন হয়েছে, তবে নিরাপদে লগ আউট সম্পন্ন হয়নি। ব্রাউজার থেকে লগ আউট করে নতুন পাসওয়ার্ড দিয়ে প্রবেশ করুন।","error");
+    return;
+  }
   displayApp(null);
   showTab("login");
-  showMessage("পাসওয়ার্ড পরিবর্তন হয়েছে। নতুন পাসওয়ার্ড দিয়ে লগ ইন করুন।","ok");
+  showMessage("পাসওয়ার্ড সফলভাবে পরিবর্তন হয়েছে। এখন নতুন পাসওয়ার্ড দিয়ে লগ ইন করুন।","ok");
 };
 
 $("changePasswordBtn").onclick=async()=>{
