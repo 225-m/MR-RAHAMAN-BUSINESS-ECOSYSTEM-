@@ -1,6 +1,12 @@
 name: Deploy Authentication Preview
 
 on:
+  push:
+    branches:
+      - feature/branch-module-v1
+    paths:
+      - 'auth-preview/**'
+      - '.github/workflows/deploy-auth-preview.yml'
   workflow_dispatch:
 
 permissions:
@@ -14,7 +20,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/feature/branch-module-v1' && vars.ENABLE_AUTH_PREVIEW_DEPLOY == 'true'
+    if: github.ref == 'refs/heads/feature/branch-module-v1'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
