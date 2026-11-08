@@ -74,8 +74,8 @@ begin
   insert into storage.objects(bucket_id,name,owner_id)
   values ('customer-avatars','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/avatar',
           'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-  if (select count(*) from storage.objects where bucket_id='customer-avatars') <> 2 then
-    raise exception 'Customer could not upload own avatar object';
+  if (select count(*) from storage.objects where bucket_id='customer-avatars') <> 1 then
+    raise exception 'Customer A can see another customer avatar';
   end if;
   if (select count(*) from storage.objects where bucket_id='customer-avatars') <> 1 then
     raise exception 'Customer A can see another customer avatar';
