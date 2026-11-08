@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+<title id="title">MR RAHAMAN Business Ecosystem</title>
+<desc id="desc">A future-ready enterprise identity combining an intelligent network globe, modular architecture, secure core and upward growth motif.</desc>
+<defs>
+ <linearGradient id="navy" x2="0" y2="1"><stop stop-color="#102b59"/><stop offset="1" stop-color="#06132e"/></linearGradient>
+ <linearGradient id="gold" x2="1" y2="1"><stop stop-color="#fff2a6"/><stop offset=".35" stop-color="#f4bd45"/><stop offset=".7" stop-color="#bd791b"/><stop offset="1" stop-color="#ffe68a"/></linearGradient>
+ <linearGradient id="silver" x2="0" y2="1"><stop stop-color="#fff"/><stop offset=".55" stop-color="#cbd9ed"/><stop offset="1" stop-color="#8299bb"/></linearGradient>
+ <linearGradient id="cyan" x2="0" y2="1"><stop stop-color="#7af5ff"/><stop offset="1" stop-color="#0878e8"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#1789ff" stop-opacity=".5"/><stop offset="1" stop-color="#1789ff" stop-opacity="0"/></radialGradient>
+ <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
+</defs>
+<rect width="1200" height="900" rx="42" fill="url(#navy)"/>
+<circle cx="600" cy="315" r="310" fill="url(#glow)"/>
+<g fill="none" stroke="#168dff" opacity=".45">
+ <circle cx="600" cy="295" r="235" stroke-width="2"/><ellipse cx="600" cy="295" rx="110" ry="235" stroke-width="2"/>
+ <ellipse cx="600" cy="295" rx="190" ry="235" stroke-width="1.5"/>
+ <path d="M370 295h460M405 205h390M405 385h390M600 60v470" stroke-width="1.5"/>
+</g>
+<g fill="#47caff" opacity=".75">
+ <circle cx="390" cy="190" r="5"/><circle cx="810" cy="210" r="5"/><circle cx="465" cy="490" r="5"/><circle cx="735" cy="470" r="5"/>
+ <circle cx="600" cy="60" r="6"/><circle cx="835" cy="330" r="4"/><circle cx="365" cy="330" r="4"/>
+</g>
+<path d="M392 388 Q600 485 808 388" fill="none" stroke="url(#gold)" stroke-width="10" stroke-linecap="round"/>
+<g transform="translate(0 0)">
+ <path d="M360 352 420 135 520 255 600 128 680 255 785 135 840 352" fill="none" stroke="#031027" stroke-width="34" stroke-linejoin="round" opacity=".7"/>
+ <path d="M360 340 420 123 520 243 600 116 680 243 785 123 840 340" fill="none" stroke="url(#silver)" stroke-width="25" stroke-linejoin="round"/>
+ <path d="M460 340 520 243 600 310 680 243 740 340" fill="none" stroke="url(#gold)" stroke-width="22" stroke-linejoin="round"/>
+ <path d="M700 350 765 350 765 285 825 285 825 220 885 220 885 155 945 155 945 90" fill="none" stroke="url(#cyan)" stroke-width="20" stroke-linejoin="round"/>
+ <path d="m915 110 30-28 30 28" fill="none" stroke="url(#gold)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<text x="600" y="570" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="800" letter-spacing="7" fill="url(#silver)">MR RAHAMAN</text>
+<path d="M190 602h820" stroke="url(#gold)" stroke-width="4"/>
+<text x="600" y="668" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="800" letter-spacing="3" fill="url(#gold)">BUSINESS ECOSYSTEM</text>
+<text x="600" y="718" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="600" letter-spacing="2" fill="#d9eaff">INTELLIGENCE • INTEGRATION • INFINITE GROWTH</text>
+<g transform="translate(150 775)" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" text-anchor="middle" fill="#d7eaff">
+ <g><path d="M0 0h180" stroke="#1b82da" stroke-width="3"/><text x="90" y="35">AI &amp; AUTOMATION</text></g>
+ <g transform="translate(225)"><path d="M0 0h180" stroke="#1b82da" stroke-width="3"/><text x="90" y="35">MODULAR PLATFORM</text></g>
+ <g transform="translate(450)"><path d="M0 0h180" stroke="#1b82da" stroke-width="3"/><text x="90" y="35">TRUST &amp; SECURITY</text></g>
+ <g transform="translate(675)"><path d="M0 0h180" stroke="#1b82da" stroke-width="3"/><text x="90" y="35">BUSINESS INTELLIGENCE</text></g>
+</g>
+<rect x="12" y="12" width="1176" height="876" rx="34" fill="none" stroke="url(#gold)" stroke-width="5" opacity=".9"/>
+</svg>
