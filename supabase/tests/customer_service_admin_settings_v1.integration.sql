@@ -17,7 +17,7 @@ values
  ('ffffffff-ffff-4fff-8fff-ffffffffffff','support_admin',null,null),
  ('99999999-9999-4999-8999-999999999999','platform_admin',null,now() - interval '1 day');
 
-do $$
+do $test$
 begin
   if (select count(*) from private.customer_service_feature_settings) <> 7 then
     raise exception 'Expected seven customer service feature settings';
@@ -34,23 +34,23 @@ begin
   ) then
     raise exception 'Only platform_admin should receive the settings permissions by default';
   end if;
-end $$;
+end $test$;
 
 set role anon;
-do $$
+do $test$
 begin
   begin
     perform public.customer_service_feature_settings_v1();
     raise exception 'anon unexpectedly read customer service settings';
   exception when insufficient_privilege then null;
   end;
-end $$;
+end $test$;
 reset role;
 
 -- A normal customer must not read settings, change flags, or query private tables.
 set role authenticated;
 set request.jwt.claim.sub = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-do $$
+do $test$
 begin
   begin
     perform public.customer_service_feature_settings_v1();
@@ -69,39 +69,39 @@ begin
     raise exception 'Customer unexpectedly read private feature table';
   exception when insufficient_privilege then null;
   end;
-end $$;
+end $test$;
 reset role;
 
 -- Support Admin does not automatically receive Customer Verification settings permission.
 set role authenticated;
 set request.jwt.claim.sub = 'ffffffff-ffff-4fff-8fff-ffffffffffff';
-do $$
+do $test$
 begin
   begin
     perform public.customer_service_feature_settings_v1();
     raise exception 'Support Admin unexpectedly read settings';
   exception when insufficient_privilege then null;
   end;
-end $$;
+end $test$;
 reset role;
 
 -- Expired platform_admin grant must not authorize.
 set role authenticated;
 set request.jwt.claim.sub = '99999999-9999-4999-8999-999999999999';
-do $$
+do $test$
 begin
   begin
     perform public.customer_service_feature_settings_v1();
     raise exception 'Expired platform_admin unexpectedly read settings';
   exception when insufficient_privilege then null;
   end;
-end $$;
+end $test$;
 reset role;
 
 -- Active Platform Admin can view the controls, but cannot enable an unready feature.
 set role authenticated;
 set request.jwt.claim.sub = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
-do $$
+do $test$
 declare
   v_settings jsonb;
 begin
@@ -125,7 +125,7 @@ begin
     raise exception 'Child feature enabled while master switch is off';
   exception when object_not_in_prerequisite_state then null;
   end;
-end $$;
+end $test$;
 reset role;
 
 -- Readiness is release-governed metadata, changed by the privileged test runner only.
@@ -143,7 +143,7 @@ where feature_key in (
 
 set role authenticated;
 set request.jwt.claim.sub = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
-do $$
+do $test$
 declare
   v_result jsonb;
   v_count integer;
@@ -168,11 +168,11 @@ begin
     raise exception 'Master-off should disable exactly two enabled verification children';
   end if;
 
-end $;
+end $test$;
 reset role;
 
 -- Privileged test runner verifies server-side state and audit rows after the RPC calls.
-do $
+do $test$
 declare
   v_count integer;
 begin
@@ -194,12 +194,12 @@ begin
   if v_count <> 7 then
     raise exception 'Expected seven audit rows for Admin test actions; found %', v_count;
   end if;
-end $;
+end $test$;
 
 -- Platform Owner is independently authorized, even without organization membership.
 set role authenticated;
 set request.jwt.claim.sub = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
-do $$
+do $test$
 declare
   v_settings jsonb;
 begin
@@ -211,11 +211,11 @@ begin
   perform public.set_customer_service_feature_v1(
     'customer_verification.master', true, 'Platform Owner authorization test'
   );
-end $$;
+end $test$;
 reset role;
 
 -- Audit data is append-only even for a privileged SQL session.
-do $$
+do $test$
 begin
   begin
     update private.customer_service_feature_audit
@@ -224,6 +224,6 @@ begin
     raise exception 'Audit row update unexpectedly succeeded';
   exception when insufficient_privilege then null;
   end;
-end $$;
+end $test$;
 
 select 'PASS: customer feature defaults, platform-scoped permissions, readiness gates, master-off cascade, payment independence, and append-only audit' as result;
