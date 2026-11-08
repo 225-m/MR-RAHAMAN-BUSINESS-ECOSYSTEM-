@@ -35,6 +35,7 @@ create table storage.objects (
   unique(bucket_id, name)
 );
 alter table storage.objects enable row level security;
+grant select on storage.buckets to authenticated;
 grant select, insert, update, delete on storage.objects to authenticated;
 
 create table public.platform_admin_roles (
