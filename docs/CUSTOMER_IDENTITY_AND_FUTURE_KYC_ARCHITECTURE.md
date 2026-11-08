@@ -186,3 +186,46 @@ Until the complete app is declared ready and the release gates pass, all future 
 8. Turning on one feature cannot implicitly activate another or incur an unapproved provider charge.
 9. Baseline email confirmation/authentication security is not weakened by the KYC master switch.
 10. The initial production configuration remains OFF until a separate release approval.
+
+## 12. Future payment-card capability — tokenized provider model only
+
+Payment-card support is part of the long-term Customer Platform architecture, but this does **not** authorize card collection or storage now.
+
+### Design boundary
+- Use a payment provider/acquirer that supports hosted checkout or provider-hosted/tokenized card fields. Prefer redirect/hosted checkout so the MR RAHAMAN application does not receive raw card data.
+- The application may retain only the provider-issued customer/payment-method token or reference where permitted, masked display metadata (for example, brand and last four digits), provider transaction IDs, currency, amount, status, and timestamps.
+- Never store or log full PAN/card number, CVV/CVC/CID, PIN, OTP, magnetic-stripe data, track data, card images, card passwords, or raw authentication credentials.
+- Never build a home-grown card vault or collect card details in ordinary Customer profile forms.
+- Tokenization does not automatically remove PCI DSS obligations. Confirm the exact PCI DSS scope and responsibilities with the acquirer/provider and qualified assessor before enabling card payments.
+- Use signed webhooks, signature verification, idempotency keys, replay protection, reconciliation, refund/chargeback workflows, and provider outage handling.
+- A provider token must be scoped to the correct customer and provider account; do not expose it to another customer or organization. Do not treat a token as a card number or as proof of payment.
+
+### Future data model (design only)
+If card-on-file is later justified and supported, keep a provider-owned reference record such as:
+- `customer_payment_methods`: customer_id, organization_id where applicable, provider_key, provider_customer_ref, provider_payment_method_ref (encrypted or protected as required), brand, last4, expiry_month/year only if provider returns and policy permits, status, created_at, revoked_at.
+- `customer_payment_transactions`: order_id, customer_id, organization_id, provider_key, provider_transaction_ref, amount, currency, status, idempotency reference, created_at, settled_at.
+- `customer_payment_events`: provider event ID, event type, signature verification result, received_at, processed_at, processing status; no raw card data or unnecessary payload retention.
+
+The exact schema, encryption/key management, retention, cross-organization boundaries, and provider contract must be reviewed before implementation. Organization-specific payment credentials and settlement accounts must never be shared implicitly between businesses.
+
+### Admin lifecycle and activation gates
+Add payment-card capability as an independent feature under the Admin's future **Customer Payments** settings; it must not be implicitly enabled by the KYC master switch. Initial state is OFF. Enablement requires:
+1. Provider/acquirer selection and contract review.
+2. Fee disclosure and explicit cost approval.
+3. Sandbox integration and provider certification/testing.
+4. PCI DSS scope confirmation and security review.
+5. Signed webhook, idempotency, reconciliation, refund and chargeback tests.
+6. Customer-facing terms, refund policy, privacy notice and support process.
+7. Explicit activation record by an authorized Platform Owner/Admin with the dedicated payment-settings permission.
+
+No payment provider, subscription, billable resource, real card collection, or Production payment activation is part of this architecture draft.
+
+## 13. Global no-collection rule until separately approved
+
+Until the relevant feature is explicitly enabled after its readiness gates:
+- Do not ask Customers to submit NID, Passport, selfie, biometric sample, or card details.
+- Do not create real KYC cases or retain identity documents/biometric material.
+- Do not provision provider integrations or collect provider credentials in the client.
+- Do not create payment-card records from manually entered card data.
+- Keep future UI routes unavailable or clearly marked as not yet available; a design placeholder must not accept uploads or sensitive input.
+- Test only with synthetic fixtures and provider sandbox test values, never real customer identity or card data.
