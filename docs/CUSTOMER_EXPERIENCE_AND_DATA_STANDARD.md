@@ -15,7 +15,8 @@ The platform must remain modular: features can be enabled by business line, coun
 - Sign up/sign in, verified email; phone OTP only after an SMS provider is configured and tested.
 - Password reset, session/device list, sign out all sessions, account lock/risk alerts.
 - Optional passkey / MFA roadmap; step-up authentication for sensitive actions.
-- Customer profile: display name, preferred language, contact details, communication preferences.
+- Customer profile: display name, optional profile picture from the first Customer Dashboard session, preferred language, contact details and communication preferences.
+- Profile picture is never mandatory; Customer can upload, replace or remove it. Accept JPEG/PNG/WebP up to 5 MiB in a private Storage bucket; object path is fixed to the authenticated user's own UUID `/avatar`, with short-lived signed URLs and Storage RLS. Do not expose a public avatar bucket.
 - Account status, verification status, privacy notice version, consent receipts.
 - No customer may self-assign employee, branch, organization, Admin, or Owner roles.
 
@@ -81,6 +82,7 @@ The platform must remain modular: features can be enabled by business line, coun
 ## 4. Data model — proposed domains, not a migration
 Keep the current `customer_profiles` table minimal. Introduce future tables only when the corresponding feature is approved and fully designed:
 - `customer_contacts`: verified email/phone and verification timestamps.
+- Avatar storage: private `customer-avatars` bucket, fixed self-owned object path, strict image MIME/size allowlist, no public URLs; profile row stores only `avatar_path`.
 - `customer_addresses`: address book, ownership, soft-delete and default selection.
 - `customer_consents`: purpose, notice version, choice, timestamp, source, withdrawal.
 - `customer_privacy_requests`: request type, status, deadlines, resolution and evidence.
@@ -97,7 +99,7 @@ Use UUID foreign keys, UTC timestamps, explicit BDT currency initially (multi-cu
 - RLS on every exposed customer table; policies bind rows to `auth.uid()` and verify both `USING` and `WITH CHECK` for updates.
 - Deny customer access to another customer's rows, staff notes, internal fraud signals, provider secrets, and organization records.
 - Keep Owner/Admin/employee authorization database-driven and independent from customer profile or user metadata.
-- Private storage buckets; signed short-lived URLs; upload allowlist, size limits, malware scanning/quarantine and ownership checks.
+- Private storage buckets; signed short-lived URLs; upload allowlist, size limits, malware scanning/quarantine and ownership checks. Customer avatars use JPEG/PNG/WebP up to 5 MiB, fixed own-user object path, and cannot be read or changed by another Customer.
 - Step-up auth for changing login credentials, changing payout/refund destinations, closing account, or viewing especially sensitive records.
 - Rate limits, bot/abuse controls, secure headers, dependency pinning, secret scanning, backup/restore drills, incident response and breach notification playbook.
 - Audit grant/revoke, account recovery, contact verification, document access, privacy request, payment/refund and privileged staff access.
