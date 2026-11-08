@@ -16,7 +16,7 @@ main{max-width:1050px;margin:26px auto;padding:0 14px}.card{background:#fff;bord
 label{display:block;font-size:13px;font-weight:700;margin:12px 0 5px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;font:inherit;min-width:0}
 .pw{display:flex;gap:6px}.pw input{flex:1}.pw button{border:1px solid var(--line);background:#f7f9fc;border-radius:9px;padding:0 12px}
 button{cursor:pointer;font:inherit}.btn{border:0;border-radius:9px;padding:12px 15px;background:var(--blue);color:#fff;font-weight:750}.btn.alt{background:#e8eef5;color:var(--navy)}.btn.danger{background:var(--red)}.btn:disabled{opacity:.55;cursor:not-allowed}
-.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.actions>*{flex:1}.hint{font-size:12px;color:var(--muted);line-height:1.6}.notice{padding:12px;border-radius:9px;background:var(--pale);font-size:13px;margin:12px 0}.notice.err{background:#fff0ef;color:var(--red)}.notice.ok{background:#eaf8f1;color:var(--green)}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px}.actions>*{flex:1}.hint{font-size:12px;color:var(--muted);line-height:1.6}.avatar-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap}.avatar{width:88px;height:88px;border-radius:50%;object-fit:cover;border:2px solid var(--line);background:#eef3f8}.avatar-actions{display:flex;flex-direction:column;gap:6px;min-width:180px}.avatar-actions input{padding:8px;font-size:12px}.notice{padding:12px;border-radius:9px;background:var(--pale);font-size:13px;margin:12px 0}.notice.err{background:#fff0ef;color:var(--red)}.notice.ok{background:#eaf8f1;color:var(--green)}
 .hidden{display:none!important}.topline{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.tile{border:1px solid var(--line);border-radius:12px;padding:16px;background:#fff}.tile b{display:block;margin-bottom:5px}.muted{color:var(--muted);font-size:13px}
 footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
 @media(max-width:620px){.card{padding:17px}.grid{grid-template-columns:1fr 1fr}.auth{margin:18px auto}}
@@ -168,8 +168,18 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
  <div class="card topline"><div><h1 style="margin:0">Customer Dashboard</h1><div class="muted" id="customerSignedInAs"></div></div><button class="btn alt" id="customerLogoutBtn">লগ আউট</button></div>
  <div class="card">
   <div class="eyebrow">CUSTOMER SELF-SERVICE</div>
-  <h2>স্বাগতম</h2>
-  <p class="muted">আপনি Customer হিসেবে প্রবেশ করেছেন। এই অংশে আপাতত শুধু নিজের প্রোফাইল দেখা ও নাম পরিবর্তন করা যাবে। কোনো Admin, Owner, Branch বা Finance সুবিধা এখানে নেই।</p>
+  <h2>আপনার গ্রাহক প্রোফাইল</h2>
+  <p class="muted">প্রোফাইল ছবি দেওয়া সম্পূর্ণ ঐচ্ছিক। চাইলে প্রথমবার প্রবেশের সময়ই আপলোড করুন, পরে পরিবর্তন বা সরিয়েও দিতে পারবেন।</p>
+  <div class="avatar-wrap">
+   <img id="customerAvatarPreview" class="avatar" alt="আপনার প্রোফাইল ছবি" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23e8eef5'/%3E%3Ccircle cx='50' cy='38' r='18' fill='%2399aabd'/%3E%3Cpath d='M15 96c3-23 17-34 35-34s32 11 35 34' fill='%2399aabd'/%3E%3C/svg%3E">
+   <div class="avatar-actions">
+    <label for="customerAvatarInput">প্রোফাইল ছবি (ঐচ্ছিক)</label>
+    <input id="customerAvatarInput" type="file" accept="image/jpeg,image/png,image/webp">
+    <button type="button" class="btn alt" id="uploadCustomerAvatarBtn">ছবি আপলোড করুন</button>
+    <button type="button" class="btn alt" id="removeCustomerAvatarBtn">ছবি সরিয়ে দিন</button>
+    <span class="hint">JPG, PNG বা WebP · সর্বোচ্চ ৫ MB</span>
+   </div>
+  </div>
   <label>আপনার নাম</label><input id="customerDisplayName" maxlength="120" autocomplete="name" placeholder="আপনার নাম">
   <div class="actions"><button class="btn" id="saveCustomerProfileBtn">প্রোফাইল সংরক্ষণ</button></div>
   <div id="customerMessage" class="notice hidden" role="status" aria-live="polite"></div>
@@ -276,6 +286,7 @@ async function refreshUser() {
     const profile=accessData.customer_profile||{};
     $("customerSignedInAs").textContent=currentUser?.email||"";
     $("customerDisplayName").value=profile.display_name||"";
+    await loadCustomerAvatar(profile.avatar_path||null);
   }
   if(!canEnterWorkspace && !canEnterCustomer) {
     $("pendingMessage").textContent="আপনার সক্রিয় Platform Owner Role অথবা dashboard.read Permission-সহ Organization Membership পাওয়া যায়নি।";
@@ -422,6 +433,63 @@ $("changePasswordBtn").onclick=async()=>{
 $("pendingLogoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
 $("logoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
 $("customerLogoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
+const AVATAR_BUCKET="customer-avatars";
+const AVATAR_MAX_BYTES=5*1024*1024;
+const DEFAULT_AVATAR=$("customerAvatarPreview").src;
+let currentAvatarUrl=null;
+let pendingAvatarPreview=null;
+function setCustomerMessage(message,kind="ok"){
+  const box=$("customerMessage");box.className="notice";box.classList.remove("hidden");
+  box.textContent=message;box.classList.add(kind==="error"?"err":"ok");
+}
+async function loadCustomerAvatar(path){
+  if(currentAvatarUrl){URL.revokeObjectURL(currentAvatarUrl);currentAvatarUrl=null;}
+  if(pendingAvatarPreview){URL.revokeObjectURL(pendingAvatarPreview);pendingAvatarPreview=null;}
+  $("customerAvatarInput").value="";
+  if(!path){$("customerAvatarPreview").src=DEFAULT_AVATAR;return;}
+  const {data,error}=await sb.storage.from(AVATAR_BUCKET).createSignedUrl(path,300);
+  if(error||!data?.signedUrl){$("customerAvatarPreview").src=DEFAULT_AVATAR;return;}
+  $("customerAvatarPreview").src=data.signedUrl;
+}
+$("customerAvatarInput").onchange=()=>{
+  const file=$("customerAvatarInput").files?.[0];
+  if(!file)return;
+  if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>AVATAR_MAX_BYTES){
+    $("customerAvatarInput").value="";
+    setCustomerMessage("JPG, PNG বা WebP ছবি দিন; ফাইল ৫ MB-এর বেশি হতে পারবে না।","error");
+    return;
+  }
+  if(pendingAvatarPreview)URL.revokeObjectURL(pendingAvatarPreview);
+  pendingAvatarPreview=URL.createObjectURL(file);
+  $("customerAvatarPreview").src=pendingAvatarPreview;
+};
+$("uploadCustomerAvatarBtn").onclick=async()=>{
+  const file=$("customerAvatarInput").files?.[0];
+  if(!file)return setCustomerMessage("আগে একটি ছবি নির্বাচন করুন।","error");
+  if(!currentUser?.id)return setCustomerMessage("নিরাপত্তার কারণে আবার লগইন করুন।","error");
+  if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>AVATAR_MAX_BYTES)
+    return setCustomerMessage("JPG, PNG বা WebP ছবি দিন; ফাইল ৫ MB-এর বেশি হতে পারবে না।","error");
+  const path=currentUser.id+"/avatar";
+  const {error:uploadError}=await sb.storage.from(AVATAR_BUCKET).upload(path,file,{upsert:true,contentType:file.type,cacheControl:"3600"});
+  if(uploadError)return setCustomerMessage("ছবি আপলোড হয়নি। Storage policy বা ফাইলের ধরন যাচাই করুন।","error");
+  const {error:updateError}=await sb.from("customer_profiles").update({avatar_path:path}).eq("user_id",currentUser.id);
+  if(updateError){
+    await sb.storage.from(AVATAR_BUCKET).remove([path]);
+    return setCustomerMessage("প্রোফাইল ছবির তথ্য সংরক্ষণ হয়নি; আপলোডটি সরিয়ে দেওয়া হয়েছে।","error");
+  }
+  await loadCustomerAvatar(path);
+  setCustomerMessage("প্রোফাইল ছবি সংরক্ষণ হয়েছে।");
+};
+$("removeCustomerAvatarBtn").onclick=async()=>{
+  if(!currentUser?.id)return;
+  const path=currentUser.id+"/avatar";
+  const {error:updateError}=await sb.from("customer_profiles").update({avatar_path:null}).eq("user_id",currentUser.id);
+  if(updateError)return setCustomerMessage("প্রোফাইল ছবি সরানো যায়নি।","error");
+  const {error:removeError}=await sb.storage.from(AVATAR_BUCKET).remove([path]);
+  await loadCustomerAvatar(null);
+  if(removeError)return setCustomerMessage("প্রোফাইল থেকে ছবি সরানো হয়েছে; পুরোনো ফাইল মুছতে ব্যর্থ হয়েছে।","error");
+  setCustomerMessage("প্রোফাইল ছবি সরানো হয়েছে।");
+};
 $("saveCustomerProfileBtn").onclick=async()=>{
   const name=$("customerDisplayName").value.trim();
   const box=$("customerMessage");
