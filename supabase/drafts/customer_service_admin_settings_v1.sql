@@ -70,6 +70,8 @@ alter table private.platform_role_permissions enable row level security;
 alter table private.customer_service_feature_settings enable row level security;
 alter table private.customer_service_feature_audit enable row level security;
 
+grant usage on schema private to authenticated;
+
 revoke all on table private.platform_permissions,
   private.platform_role_permissions,
   private.customer_service_feature_settings,
@@ -304,7 +306,7 @@ revoke all on function private.customer_service_feature_settings_v1()
 revoke all on function private.set_customer_service_feature_v1(text,boolean,text)
   from public, anon, authenticated, service_role;
 
-grant execute on function private.has_platform_permission(text) to authenticated;
+-- Internal authorization helper is not directly callable by clients.
 grant execute on function private.customer_service_feature_settings_v1() to authenticated;
 grant execute on function private.set_customer_service_feature_v1(text,boolean,text) to authenticated;
 
