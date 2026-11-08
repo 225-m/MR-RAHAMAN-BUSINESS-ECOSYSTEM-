@@ -442,6 +442,23 @@ function setCustomerMessage(message,kind="ok"){
   const box=$("customerMessage");box.className="notice";box.classList.remove("hidden");
   box.textContent=message;box.classList.add(kind==="error"?"err":"ok");
 }
+async function normalizeCustomerAvatar(file){
+  if(typeof createImageBitmap!=="function")throw new Error("এই ব্রাউজারে ছবি প্রক্রিয়াকরণ সমর্থিত নয়।");
+  const bitmap=await createImageBitmap(file);
+  try{
+    if(bitmap.width>8000||bitmap.height>8000)throw new Error("ছবির মাপ ৮০০০ পিক্সেলের বেশি হতে পারবে না।");
+    const scale=Math.min(1,512/Math.max(bitmap.width,bitmap.height));
+    const canvas=document.createElement("canvas");
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    const ctx=canvas.getContext("2d");
+    if(!ctx)throw new Error("ছবি প্রক্রিয়াকরণ করা যায়নি।");
+    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/webp",0.82));
+    if(!blob)throw new Error("ছবিটি WebP-তে রূপান্তর করা যায়নি।");
+    return new File([blob],"customer-avatar.webp",{type:"image/webp",lastModified:Date.now()});
+  }finally{bitmap.close?.();}
+}
 async function loadCustomerAvatar(path){
   if(currentAvatarUrl){URL.revokeObjectURL(currentAvatarUrl);currentAvatarUrl=null;}
   if(pendingAvatarPreview){URL.revokeObjectURL(pendingAvatarPreview);pendingAvatarPreview=null;}
@@ -470,7 +487,10 @@ $("uploadCustomerAvatarBtn").onclick=async()=>{
   if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>AVATAR_MAX_BYTES)
     return setCustomerMessage("JPG, PNG বা WebP ছবি দিন; ফাইল ৫ MB-এর বেশি হতে পারবে না।","error");
   const path=currentUser.id+"/avatar";
-  const {error:uploadError}=await sb.storage.from(AVATAR_BUCKET).upload(path,file,{upsert:true,contentType:file.type,cacheControl:"3600"});
+  let safeFile;
+  try{safeFile=await normalizeCustomerAvatar(file);}
+  catch(error){return setCustomerMessage(error.message||"ছবিটি নিরাপদে প্রক্রিয়া করা যায়নি।","error");}
+  const {error:uploadError}=await sb.storage.from(AVATAR_BUCKET).upload(path,safeFile,{upsert:true,contentType:"image/webp",cacheControl:"3600"});
   if(uploadError)return setCustomerMessage("ছবি আপলোড হয়নি। Storage policy বা ফাইলের ধরন যাচাই করুন।","error");
   const {error:updateError}=await sb.from("customer_profiles").update({avatar_path:path}).eq("user_id",currentUser.id);
   if(updateError){
