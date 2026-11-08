@@ -76,6 +76,22 @@ begin
 end $test$;
 reset role;
 
+-- security_admin has no customer verification/payment settings permission by default.
+update public.platform_admin_roles
+set role_key='security_admin'
+where user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+set role authenticated;
+set request.jwt.claim.sub = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+do $test$
+begin
+  begin
+    perform public.customer_service_feature_settings_v1();
+    raise exception 'Security Admin unexpectedly read settings';
+  exception when insufficient_privilege then null;
+  end;
+end $test$;
+reset role;
+
 -- Reassign the trusted test identity to an expired platform_admin grant.
 update public.platform_admin_roles
 set role_key='platform_admin', expires_at=now() - interval '1 day'
@@ -89,6 +105,22 @@ begin
   begin
     perform public.customer_service_feature_settings_v1();
     raise exception 'Expired platform_admin unexpectedly read settings';
+  exception when insufficient_privilege then null;
+  end;
+end $test$;
+reset role;
+
+-- A revoked platform_admin grant must also be denied.
+update public.platform_admin_roles
+set expires_at=null, revoked_at=now()
+where user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+set role authenticated;
+set request.jwt.claim.sub = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+do $test$
+begin
+  begin
+    perform public.customer_service_feature_settings_v1();
+    raise exception 'Revoked platform_admin unexpectedly read settings';
   exception when insufficient_privilege then null;
   end;
 end $test$;
