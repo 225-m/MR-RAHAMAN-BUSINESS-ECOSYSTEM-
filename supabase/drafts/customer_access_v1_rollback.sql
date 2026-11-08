@@ -9,6 +9,13 @@ begin;
 drop trigger if exists on_auth_user_created_customer_profile on auth.users;
 drop trigger if exists customer_profiles_set_updated_at on public.customer_profiles;
 
+-- Disable Customer avatar object access but retain the private bucket and images
+-- for a data-preserving rollback. The bucket remains private.
+drop policy if exists customer_avatars_select_own on storage.objects;
+drop policy if exists customer_avatars_insert_own on storage.objects;
+drop policy if exists customer_avatars_update_own on storage.objects;
+drop policy if exists customer_avatars_delete_own on storage.objects;
+
 -- Revoke all client access before removing the access-context API.
 revoke all on table public.customer_profiles from public, anon, authenticated;
 
@@ -28,4 +35,5 @@ commit;
 -- 3. The two Customer triggers and the new RPC/functions are absent.
 -- 4. PUBLIC/anon/authenticated have no table privileges.
 -- 5. Existing platform_admin_roles and organization/branch data are untouched.
--- 6. Do not drop customer_profiles or delete its rows as part of rollback.
+-- 6. Avatar bucket and files remain private and retained; Customer Storage policies are absent.
+-- 7. Do not drop customer_profiles or delete its rows as part of rollback.
