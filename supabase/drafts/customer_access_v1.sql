@@ -20,12 +20,12 @@ revoke all on table public.customer_profiles from public, anon, authenticated;
 grant select on table public.customer_profiles to authenticated;
 grant update (display_name, avatar_path) on table public.customer_profiles to authenticated;
 
-do $ begin
+do $avatar_constraint$ begin
   alter table public.customer_profiles
     add constraint customer_profiles_avatar_path_own
     check (avatar_path is null or avatar_path = user_id::text || '/avatar');
 exception when duplicate_object then null;
-end $;
+end $avatar_constraint$;
 
 drop policy if exists customer_profiles_select_own on public.customer_profiles;
 create policy customer_profiles_select_own
