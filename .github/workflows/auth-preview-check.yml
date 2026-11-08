@@ -73,6 +73,9 @@ jobs:
           const fs = require('node:fs');
           const vm = require('node:vm');
           const html = fs.readFileSync('auth-preview/index.html', 'utf8');
+          const logoPath = 'assets/brand/mr-rahaman-business-ecosystem.svg';
+          if (!fs.existsSync(logoPath)) throw new Error('Brand logo asset missing: ' + logoPath);
+          if (!html.includes('../' + logoPath)) throw new Error('Authentication preview does not reference the canonical brand logo');
           const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
             .map(match => match[1]).filter(Boolean);
           if (!scripts.length) throw new Error('No inline application script found');
