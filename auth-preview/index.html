@@ -214,10 +214,15 @@ function displayApp(user) {
   const emailOK=!!user?.email_confirmed_at;
   // Email verification authenticates identity only; database authorization remains separate.
   // Keep business views closed until the database-backed Owner/member gate is implemented.
-  $("authView").classList.toggle("hidden",emailOK);
+  const recovering=recoveryMode;
+  $("authView").classList.toggle("hidden",emailOK&&!recovering);
   $("appView").classList.add("hidden");
-  $("accessPendingView").classList.toggle("hidden",!emailOK);
-  $("headerStatus").textContent=emailOK?"Email Verified · Access Pending":"Email Verification Required";
+  $("accessPendingView").classList.toggle("hidden",!emailOK||recovering);
+  $("headerStatus").textContent=recovering?"Password Recovery":emailOK?"Email Verified · Access Pending":"Email Verification Required";
+  if(recovering) {
+    showTab("recover");
+    $("newPasswordPane").classList.remove("hidden");
+  }
   $("signedInAs").textContent=user?.email||"";
   $("verifiedAccountEmail").textContent=user?.email ? `যাচাইকৃত অ্যাকাউন্ট: ${user.email}` : "";
   if(user && !emailOK) {
@@ -267,12 +272,16 @@ async function boot() {
   if(session?.user) await refreshUser();
   sb.auth.onAuthStateChange((event,session)=>{
     setTimeout(async()=>{
+      if(event==="PASSWORD_RECOVERY") {
+        recoveryMode=true;
+        displayApp(session?.user||null);
+        showTab("recover");
+        $("newPasswordPane").classList.remove("hidden");
+        showMessage("নতুন পাসওয়ার্ড সেট করুন।");
+        return;
+      }
       displayApp(session?.user||null);
       if(session?.user) await refreshUser();
-      if(event==="PASSWORD_RECOVERY") {
-        recoveryMode=true; showTab("recover"); $("newPasswordPane").classList.remove("hidden");
-        showMessage("নতুন পাসওয়ার্ড সেট করুন।");
-      }
     },0);
   });
 }
@@ -317,8 +326,11 @@ $("savePasswordBtn").onclick=async()=>{
   if(password.length<8) return showMessage("নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষরের দিন।","error");
   const {error}=await sb.auth.updateUser({password});
   if(error) return showMessage(error.message,"error");
-  recoveryMode=false; $("newPasswordPane").classList.add("hidden");
-  showMessage("পাসওয়ার্ড পরিবর্তন হয়েছে। নিরাপদে লগ ইন করুন।","ok");
+  recoveryMode=false;
+  await sb.auth.signOut();
+  displayApp(null);
+  showTab("login");
+  showMessage("পাসওয়ার্ড পরিবর্তন হয়েছে। নতুন পাসওয়ার্ড দিয়ে লগ ইন করুন।","ok");
 };
 
 $("changePasswordBtn").onclick=async()=>{
