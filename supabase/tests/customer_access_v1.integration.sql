@@ -67,7 +67,7 @@ begin
        set avatar_path = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/avatar'
      where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
     raise exception 'Customer set another user avatar path';
-  exception when check_violation then
+  exception when insufficient_privilege then
     null;
   end;
 
@@ -77,9 +77,7 @@ begin
   if (select count(*) from storage.objects where bucket_id='customer-avatars') <> 1 then
     raise exception 'Customer A can see another customer avatar';
   end if;
-  if (select count(*) from storage.objects where bucket_id='customer-avatars') <> 1 then
-    raise exception 'Customer A can see another customer avatar';
-  end if;
+
   if exists (select 1 from storage.objects
     where bucket_id='customer-avatars'
       and name='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/avatar') then
