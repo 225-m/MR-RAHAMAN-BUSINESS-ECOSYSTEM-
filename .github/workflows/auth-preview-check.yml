@@ -10,6 +10,7 @@ on:
       - 'supabase/drafts/customer_access_v1.sql'
       - 'supabase/drafts/customer_access_v1_rollback.sql'
       - 'supabase/drafts/customer_service_admin_settings_v1.sql'
+      - 'supabase/drafts/customer_service_admin_settings_v1_rollback.sql'
       - 'docs/CUSTOMER_EXPERIENCE_AND_DATA_STANDARD.md'
       - 'docs/CUSTOMER_SERVICE_ADMIN_SETTINGS_V1.md'
       - 'supabase/tests/**'
@@ -62,6 +63,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1.integration.sql
           psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_service_admin_settings_v1.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_service_admin_settings_v1.integration.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_service_admin_settings_v1_rollback.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_service_admin_settings_v1_rollback.integration.sql
           psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_access_v1_rollback.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1_rollback.integration.sql
       - name: Validate authentication preview
