@@ -58,3 +58,17 @@ Deployment workflow feature branch-এর push-এ চলে, তবে reposito
 
 ## Automated static checks
 GitHub Actions-এর `Authentication Preview Checks` workflow push/PR-এ JavaScript syntax, HTML ID, email-only authentication, database access gate এবং browser secret scan চালায়। Workflow result না পাওয়া পর্যন্ত CI PASS দাবি করা যাবে না।
+
+
+## Android-এ সরাসরি Login Preview (বর্তমান প্রকাশিত ঠিকানা)
+
+GitHub Pages চালু করার জন্য repository-level Pages administration permission প্রয়োজন; সংযুক্ত GitHub integration সেটি দিতে পারেনি। তাই বিনামূল্যের বর্তমান Supabase project-এর Edge Function দিয়ে একই Authentication Preview প্রকাশ করা হয়েছে।
+
+- URL: https://pojhrvmuamdejlutxpng.supabase.co/functions/v1/auth-preview
+- Function: `auth-preview`
+- Status: ACTIVE (version 1)
+- `verify_jwt=false`: শুধু HTML Login পেজটি সবার জন্য খোলা; এটি Supabase Auth-এ লগইন করে না এবং কোনো service-role key প্রকাশ করে না।
+- UI source of truth: `auth-preview/index.html`
+- Deployable Edge Function source: `supabase/functions/auth-preview/index.ts`
+
+Android Chrome-এ URL খুলে Email ও Password দিয়ে Login করুন। লগইন সফল হলে, Owner/Organization Permission RPC এখনো প্রস্তুত না থাকায় Dashboard-এ প্রবেশের বদলে Access Pending দেখাতে পারে। এটি নিরাপত্তার জন্য রাখা হয়েছে। Production database-এ কোনো Owner assignment বা schema change এই deploy-এ করা হয়নি।
