@@ -9,6 +9,7 @@ begin;
 create table if not exists public.customer_profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   display_name text,
+  avatar_path text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -17,7 +18,14 @@ alter table public.customer_profiles enable row level security;
 
 revoke all on table public.customer_profiles from public, anon, authenticated;
 grant select on table public.customer_profiles to authenticated;
-grant update (display_name) on table public.customer_profiles to authenticated;
+grant update (display_name, avatar_path) on table public.customer_profiles to authenticated;
+
+do $ begin
+  alter table public.customer_profiles
+    add constraint customer_profiles_avatar_path_own
+    check (avatar_path is null or avatar_path = user_id::text || '/avatar');
+exception when duplicate_object then null;
+end $;
 
 drop policy if exists customer_profiles_select_own on public.customer_profiles;
 create policy customer_profiles_select_own
@@ -32,7 +40,52 @@ create policy customer_profiles_update_own
   for update
   to authenticated
   using ((select auth.uid()) = user_id)
-  with check ((select auth.uid()) = user_id);
+  with check (
+    (select auth.uid()) = user_id
+    and (avatar_path is null or avatar_path = user_id::text || '/avatar')
+  );
+
+-- Private Customer avatar bucket. Every Customer can manage only one fixed object
+-- path under their own Auth UUID. Never expose a public bucket or arbitrary paths.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'customer-avatars',
+  'customer-avatars',
+  false,
+  5242880,
+  array['image/jpeg','image/png','image/webp']
+)
+on conflict (id) do update
+set public = false,
+    file_size_limit = 5242880,
+    allowed_mime_types = array['image/jpeg','image/png','image/webp'];
+
+drop policy if exists customer_avatars_select_own on storage.objects;
+create policy customer_avatars_select_own
+  on storage.objects for select to authenticated
+  using (bucket_id = 'customer-avatars'
+    and name = (select auth.uid())::text || '/avatar');
+
+drop policy if exists customer_avatars_insert_own on storage.objects;
+create policy customer_avatars_insert_own
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'customer-avatars'
+    and name = (select auth.uid())::text || '/avatar');
+
+drop policy if exists customer_avatars_update_own on storage.objects;
+create policy customer_avatars_update_own
+  on storage.objects for update to authenticated
+  using (bucket_id = 'customer-avatars'
+    and name = (select auth.uid())::text || '/avatar')
+  with check (bucket_id = 'customer-avatars'
+    and name = (select auth.uid())::text || '/avatar');
+
+drop policy if exists customer_avatars_delete_own on storage.objects;
+create policy customer_avatars_delete_own
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'customer-avatars'
+    and name = (select auth.uid())::text || '/avatar');
+
 
 create or replace function private.set_customer_profile_updated_at()
 returns trigger
@@ -118,6 +171,7 @@ begin
 
   select pg_catalog.jsonb_build_object(
     'display_name', cp.display_name,
+    'avatar_path', cp.avatar_path,
     'created_at', cp.created_at
   )
   into v_customer_profile
@@ -195,6 +249,8 @@ commit;
 -- * Authenticated Customer A can read/update only their own display_name.
 -- * Customer A cannot read/update Customer B's profile.
 -- * Customer cannot INSERT, DELETE, or change user_id/created_at/updated_at.
+-- * Avatar upload/replace/delete is limited to auth.uid()/avatar in private bucket;
+--   MIME allowlist and 5 MiB limit enforced by Storage bucket.
 -- * Customer context reports is_customer=true, is_platform_owner=false,
 --   organizations=[] when no authorized organization membership exists.
 -- * Missing/failed RPC keeps all business/admin workspaces closed.
