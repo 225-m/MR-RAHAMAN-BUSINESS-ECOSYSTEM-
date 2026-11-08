@@ -184,8 +184,8 @@ begin
   select count(*) into v_count
   from private.customer_service_feature_audit
   where actor_user_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
-  if v_count <> 6 then
-    raise exception 'Expected six audit rows for Admin test actions; found %', v_count;
+  if v_count <> 7 then
+    raise exception 'Expected seven audit rows for Admin test actions; found %', v_count;
   end if;
 end $$;
 reset role;
