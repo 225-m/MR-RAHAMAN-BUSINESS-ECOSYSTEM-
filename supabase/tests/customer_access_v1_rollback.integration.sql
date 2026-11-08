@@ -20,7 +20,9 @@ where
   and (select relrowsecurity from pg_class where oid='public.customer_profiles'::regclass)
   and (select count(*) from public.customer_profiles) = 2
   and not has_table_privilege('anon','public.customer_profiles','select')
-  and not has_table_privilege('authenticated','public.customer_profiles','select');
+  and not has_table_privilege('authenticated','public.customer_profiles','select')
+  and not exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname like 'customer_avatars_%')
+  and exists (select 1 from storage.buckets where id='customer-avatars' and public=false);
 
 do $$
 begin
@@ -37,10 +39,16 @@ begin
      or has_table_privilege('authenticated','public.customer_profiles','select') then
     raise exception 'Rollback left client table grants';
   end if;
+  if exists (select 1 from pg_policies where schemaname='storage' and tablename='objects' and policyname like 'customer_avatars_%') then
+    raise exception 'Rollback left Customer avatar Storage policies';
+  end if;
+  if not exists (select 1 from storage.buckets where id='customer-avatars' and public=false) then
+    raise exception 'Rollback removed or exposed private avatar bucket';
+  end if;
   if to_regprocedure('public.current_access_context_v1()') is not null
      or to_regprocedure('private.current_access_context_v1()') is not null then
     raise exception 'Rollback left Customer access RPC functions';
   end if;
 end $$;
 
-select 'PASS: rollback retained customer data and RLS while disabling customer access' as result;
+select 'PASS: rollback retained customer profiles and private avatar files while disabling Customer RPC and Storage access' as result;
