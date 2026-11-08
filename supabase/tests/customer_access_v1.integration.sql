@@ -5,6 +5,11 @@
 insert into auth.users (id,email,email_confirmed_at,raw_user_meta_data)
 values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb','customer-b@example.test',now(),'{"full_name":"Customer B"}');
 
+-- Seed Customer B's avatar as the privileged test runner; A must never see or alter it.
+insert into storage.objects(bucket_id,name,owner_id)
+values ('customer-avatars','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/avatar',
+        'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+
 do $$
 begin
   if (select count(*) from public.customer_profiles) <> 2 then
@@ -69,8 +74,11 @@ begin
   insert into storage.objects(bucket_id,name,owner_id)
   values ('customer-avatars','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/avatar',
           'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-  if (select count(*) from storage.objects) <> 1 then
+  if (select count(*) from storage.objects where bucket_id='customer-avatars') <> 2 then
     raise exception 'Customer could not upload own avatar object';
+  end if;
+  if (select count(*) from storage.objects where bucket_id='customer-avatars') <> 1 then
+    raise exception 'Customer A can see another customer avatar';
   end if;
   if exists (select 1 from storage.objects
     where bucket_id='customer-avatars'
@@ -81,6 +89,16 @@ begin
    where bucket_id='customer-avatars'
      and name='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/avatar';
   if found then raise exception 'Customer modified another user avatar'; end if;
+  delete from storage.objects
+   where bucket_id='customer-avatars'
+     and name='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/avatar';
+  if found then raise exception 'Customer deleted another user avatar'; end if;
+  if (select public from storage.buckets where id='customer-avatars') then
+    raise exception 'Customer avatar bucket must remain private';
+  end if;
+  if (select file_size_limit from storage.buckets where id='customer-avatars') <> 5242880 then
+    raise exception 'Customer avatar size limit is not 5 MiB';
+  end if;
 
   v_context := public.current_access_context_v1();
   if v_context -> 'customer_profile' ->> 'avatar_path' <> 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/avatar' then
