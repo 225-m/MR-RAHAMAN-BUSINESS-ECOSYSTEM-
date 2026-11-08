@@ -82,3 +82,5 @@ end $$;
 
 reset role;
 select 'PASS: customer profile backfill, signup trigger, own-row RLS, restricted column grants, anon denial, and customer access context' as result;
+
+-- CI runner executes this file against an isolated PostgreSQL 17 service.
