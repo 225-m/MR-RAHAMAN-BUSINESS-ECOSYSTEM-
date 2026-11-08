@@ -1,8 +1,8 @@
 -- Disposable PostgreSQL fixture for customer_access_v1.sql integration checks.
 -- Never run against the Supabase Production project.
-do $$ begin create role anon nologin; exception when duplicate_object then null; end $$;
-do $ begin create role authenticated nologin; exception when duplicate_object then null; end $;
-do $ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $;
+do $role$ begin create role anon nologin; exception when duplicate_object then null; end $role$;
+do $role$ begin create role authenticated nologin; exception when duplicate_object then null; end $role$;
+do $role$ begin create role service_role nologin bypassrls; exception when duplicate_object then null; end $role$;
 create schema if not exists auth;
 create schema if not exists private;
 create schema if not exists storage;
