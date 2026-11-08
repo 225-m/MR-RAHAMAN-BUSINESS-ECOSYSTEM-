@@ -82,7 +82,7 @@ jobs:
           const phoneOtp = /phoneVerifyPane|sendPhoneOtpBtn|verifyPhoneOtpBtn|phoneOtp|phone_pending|phone_confirmed_at|normalizeBDPhone|regPhone|মোবাইল OTP/i;
           if (phoneOtp.test(html)) throw new Error('Phone OTP flow must remain removed');
 
-          for (const required of ['signInWithPassword', 'signUp(', 'resetPasswordForEmail', 'current_access_context_v1', 'dashboard.read', 'is_platform_owner', 'is_customer', 'customerView', 'customer_profiles', 'customerAvatarInput', 'uploadCustomerAvatarBtn', 'removeCustomerAvatarBtn', 'customer-avatars', 'createSignedUrl', 'AVATAR_MAX_BYTES']) {
+          for (const required of ['signInWithPassword', 'signUp(', 'resetPasswordForEmail', 'current_access_context_v1', 'dashboard.read', 'is_platform_owner', 'is_customer', 'customerView', 'customer_profiles', 'customerAvatarInput', 'uploadCustomerAvatarBtn', 'removeCustomerAvatarBtn', 'customer-avatars', 'createSignedUrl', 'AVATAR_MAX_BYTES', 'normalizeCustomerAvatar']) {
             if (!html.includes(required)) throw new Error('Required auth/access feature missing: ' + required);
           }
 
