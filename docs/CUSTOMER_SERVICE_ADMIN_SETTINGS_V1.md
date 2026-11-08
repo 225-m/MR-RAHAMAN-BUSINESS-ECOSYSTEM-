@@ -105,6 +105,11 @@ The disposable PostgreSQL integration test must prove:
 9. Audit rows cannot be updated or deleted.
 10. Existing customer profile/owner/organization access tests remain intact.
 
-## 9. Change-control
+
+## 10. Rollback behavior
+
+The rollback draft removes the public settings RPC entry points and private authorization/settings functions, but deliberately retains the platform permission catalogue, role mappings, feature configuration rows, RLS, and append-only audit history. It does not delete customer records or any future KYC/payment data. After any real use, prefer a forward fix; never drop retained configuration or audit tables as a routine rollback.
+
+## 11. Change-control
 
 This work is a branch-only draft. It must be tested in disposable PostgreSQL. Do not apply it to the live Supabase project, merge the pull request, deploy the app, create paid resources, configure a paid provider, or collect real customer data without separate explicit approval.
