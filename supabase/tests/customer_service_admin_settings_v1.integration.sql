@@ -168,6 +168,14 @@ begin
     raise exception 'Master-off should disable exactly two enabled verification children';
   end if;
 
+end $;
+reset role;
+
+-- Privileged test runner verifies server-side state and audit rows after the RPC calls.
+do $
+declare
+  v_count integer;
+begin
   if exists (
     select 1 from private.customer_service_feature_settings
     where feature_group='customer_verification' and is_enabled
@@ -180,15 +188,13 @@ begin
   ) then
     raise exception 'Payment card feature must remain independent of verification master';
   end if;
-
   select count(*) into v_count
   from private.customer_service_feature_audit
   where actor_user_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
   if v_count <> 7 then
     raise exception 'Expected seven audit rows for Admin test actions; found %', v_count;
   end if;
-end $$;
-reset role;
+end $;
 
 -- Platform Owner is independently authorized, even without organization membership.
 set role authenticated;
