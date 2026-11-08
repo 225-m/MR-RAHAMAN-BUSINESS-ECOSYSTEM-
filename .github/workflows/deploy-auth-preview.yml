@@ -1,6 +1,12 @@
-name: Optional GitHub Pages Deployment (Manual)
+name: GitHub Pages Authentication Preview Deployment
 
 on:
+  push:
+    branches:
+      - feature/branch-module-v1
+    paths:
+      - 'auth-preview/**'
+      - '.github/workflows/deploy-auth-preview.yml'
   workflow_dispatch:
 
 permissions:
@@ -10,7 +16,7 @@ permissions:
 
 jobs:
   deploy:
-    if: github.ref == 'refs/heads/feature/branch-module-v1' && vars.ENABLE_GITHUB_PAGES_DEPLOY == 'true'
+    if: github.ref == 'refs/heads/feature/branch-module-v1'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
