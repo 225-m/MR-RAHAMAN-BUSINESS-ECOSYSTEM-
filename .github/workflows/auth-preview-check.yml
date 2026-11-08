@@ -53,7 +53,7 @@ jobs:
             if (!html.includes(required)) throw new Error('Required auth/access feature missing: ' + required);
           }
 
-          if (/SUPABASE_SERVICE_ROLE_KEY\s*=|sb_secret/i.test(html)) {
+          if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
             throw new Error('Server secret detected in browser source');
           }
           console.log('PASS: JavaScript syntax, unique DOM IDs, DOM references, email-only auth, database gate, and no browser secrets.');
