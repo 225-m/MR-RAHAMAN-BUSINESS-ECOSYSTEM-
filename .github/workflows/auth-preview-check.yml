@@ -9,6 +9,7 @@ on:
       - 'auth-preview/**'
       - 'supabase/drafts/customer_access_v1.sql'
       - 'supabase/drafts/customer_access_v1_rollback.sql'
+      - 'docs/CUSTOMER_EXPERIENCE_AND_DATA_STANDARD.md'
       - 'supabase/tests/**'
       - 'supabase/functions/auth-preview/index.ts'
       - '.github/workflows/auth-preview-check.yml'
@@ -81,7 +82,7 @@ jobs:
           const phoneOtp = /phoneVerifyPane|sendPhoneOtpBtn|verifyPhoneOtpBtn|phoneOtp|phone_pending|phone_confirmed_at|normalizeBDPhone|regPhone|মোবাইল OTP/i;
           if (phoneOtp.test(html)) throw new Error('Phone OTP flow must remain removed');
 
-          for (const required of ['signInWithPassword', 'signUp(', 'resetPasswordForEmail', 'current_access_context_v1', 'dashboard.read', 'is_platform_owner', 'is_customer', 'customerView', 'customer_profiles']) {
+          for (const required of ['signInWithPassword', 'signUp(', 'resetPasswordForEmail', 'current_access_context_v1', 'dashboard.read', 'is_platform_owner', 'is_customer', 'customerView', 'customer_profiles', 'customerAvatarInput', 'uploadCustomerAvatarBtn', 'removeCustomerAvatarBtn', 'customer-avatars', 'createSignedUrl', 'AVATAR_MAX_BYTES']) {
             if (!html.includes(required)) throw new Error('Required auth/access feature missing: ' + required);
           }
 
@@ -89,7 +90,7 @@ jobs:
             throw new Error('Server secret detected in browser source');
           }
           const customerSql = fs.readFileSync('supabase/drafts/customer_access_v1.sql', 'utf8');
-          for (const required of ['enable row level security', 'customer_profiles_select_own', 'customer_profiles_update_own', 'auth.uid()', 'security invoker', 'is_customer']) {
+          for (const required of ['enable row level security', 'customer_profiles_select_own', 'customer_profiles_update_own', 'customer_profiles_avatar_path_own', 'customer_avatars_select_own', 'customer_avatars_insert_own', 'customer_avatars_update_own', 'customer_avatars_delete_own', 'customer-avatars', '5242880', 'auth.uid()', 'security invoker', 'is_customer']) {
             if (!customerSql.toLowerCase().includes(required.toLowerCase())) throw new Error('Customer SQL security control missing: ' + required);
           }
           if (/grant\s+all\s+on\s+table\s+public\.customer_profiles\s+to\s+(anon|authenticated)/i.test(customerSql)) {
@@ -99,6 +100,6 @@ jobs:
             throw new Error('Customer profile ownership predicate missing');
           }
           const edge = fs.readFileSync('supabase/functions/auth-preview/index.ts', 'utf8');
-          if (!edge.includes('Customer Dashboard') || !edge.includes('is_customer')) throw new Error('Edge Function is not synced with Customer UI');
+          if (!edge.includes('Customer Dashboard') || !edge.includes('is_customer') || !edge.includes('customerAvatarInput') || !edge.includes('customer-avatars')) throw new Error('Edge Function is not synced with Customer avatar UI');
           console.log('PASS: JavaScript syntax, unique DOM IDs, DOM references, email-only auth, database gate, customer RLS draft, Edge Function sync, and no browser secrets.');
           NODE
