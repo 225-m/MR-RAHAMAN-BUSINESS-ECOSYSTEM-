@@ -163,6 +163,18 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
   <div id="pendingMessage" class="notice hidden" role="status" aria-live="polite"></div>
  </div>
 </section>
+
+<section id="customerView" class="hidden">
+ <div class="card topline"><div><h1 style="margin:0">Customer Dashboard</h1><div class="muted" id="customerSignedInAs"></div></div><button class="btn alt" id="customerLogoutBtn">লগ আউট</button></div>
+ <div class="card">
+  <div class="eyebrow">CUSTOMER SELF-SERVICE</div>
+  <h2>স্বাগতম</h2>
+  <p class="muted">আপনি Customer হিসেবে প্রবেশ করেছেন। এই অংশে আপাতত শুধু নিজের প্রোফাইল দেখা ও নাম পরিবর্তন করা যাবে। কোনো Admin, Owner, Branch বা Finance সুবিধা এখানে নেই।</p>
+  <label>আপনার নাম</label><input id="customerDisplayName" maxlength="120" autocomplete="name" placeholder="আপনার নাম">
+  <div class="actions"><button class="btn" id="saveCustomerProfileBtn">প্রোফাইল সংরক্ষণ</button></div>
+  <div id="customerMessage" class="notice hidden" role="status" aria-live="polite"></div>
+ </div>
+</section>
 </main>
 <footer>MR RAHAMAN · Business Ecosystem · Authentication Preview</footer>
 
@@ -218,6 +230,7 @@ function displayApp(user) {
   const recovering=recoveryMode;
   $("authView").classList.toggle("hidden",emailOK&&!recovering);
   $("appView").classList.add("hidden");
+  $("customerView").classList.add("hidden");
   $("accessPendingView").classList.toggle("hidden",!emailOK||recovering);
   $("headerStatus").textContent=recovering?"Password Recovery":emailOK?"Email Verified · Access Pending":"Email Verification Required";
   if(recovering) {
@@ -252,12 +265,19 @@ async function refreshUser() {
     accessData.organizations.some(org=>Array.isArray(org.permissions) &&
       org.permissions.includes("dashboard.read"));
   const canEnterWorkspace=isPlatformOwner || hasDashboardPermission;
+  const canEnterCustomer=accessData.is_customer===true && !canEnterWorkspace;
   $("appView").classList.toggle("hidden",!canEnterWorkspace);
-  $("accessPendingView").classList.toggle("hidden",canEnterWorkspace);
+  $("customerView").classList.toggle("hidden",!canEnterCustomer);
+  $("accessPendingView").classList.toggle("hidden",canEnterWorkspace||canEnterCustomer);
   $("headerStatus").textContent=canEnterWorkspace
     ? (isPlatformOwner ? "Platform Owner Verified" : "Organization Access Verified")
-    : "Email Verified · Access Pending";
-  if(!canEnterWorkspace) {
+    : canEnterCustomer ? "Customer Access Verified" : "Email Verified · Access Pending";
+  if(canEnterCustomer) {
+    const profile=accessData.customer_profile||{};
+    $("customerSignedInAs").textContent=currentUser?.email||"";
+    $("customerDisplayName").value=profile.display_name||"";
+  }
+  if(!canEnterWorkspace && !canEnterCustomer) {
     $("pendingMessage").textContent="আপনার সক্রিয় Platform Owner Role অথবা dashboard.read Permission-সহ Organization Membership পাওয়া যায়নি।";
     $("pendingMessage").className="notice";
     $("pendingMessage").classList.remove("hidden");
@@ -401,6 +421,16 @@ $("changePasswordBtn").onclick=async()=>{
 };
 $("pendingLogoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
 $("logoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
+$("customerLogoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
+$("saveCustomerProfileBtn").onclick=async()=>{
+  const name=$("customerDisplayName").value.trim();
+  const box=$("customerMessage");
+  box.className="notice";box.classList.remove("hidden");
+  if(!name || name.length>120){box.textContent="১ থেকে ১২০ অক্ষরের মধ্যে আপনার নাম লিখুন।";box.classList.add("err");return;}
+  const {error}=await sb.from("customer_profiles").update({display_name:name}).eq("user_id",currentUser.id);
+  if(error){box.textContent="প্রোফাইল সংরক্ষণ করা যায়নি। নিরাপত্তার কারণে অনুরোধ বন্ধ রাখা হয়েছে।";box.classList.add("err");return;}
+  box.textContent="আপনার প্রোফাইল সংরক্ষণ হয়েছে।";box.classList.add("ok");
+};
 boot();
 </script>
 </body>
