@@ -312,7 +312,7 @@ async function boot() {
   const callbackError = params.get("error_description") || params.get("error");
   if(callbackError) {
     showTab("recover");
-    showMessage(decodeURIComponent(callbackError.replace(/\+/g, " ")), "error");
+    showMessage(callbackError, "error");
   }
 }
 
