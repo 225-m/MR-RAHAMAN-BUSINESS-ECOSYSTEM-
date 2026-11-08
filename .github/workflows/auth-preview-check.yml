@@ -9,7 +9,9 @@ on:
       - 'auth-preview/**'
       - 'supabase/drafts/customer_access_v1.sql'
       - 'supabase/drafts/customer_access_v1_rollback.sql'
+      - 'supabase/drafts/customer_service_admin_settings_v1.sql'
       - 'docs/CUSTOMER_EXPERIENCE_AND_DATA_STANDARD.md'
+      - 'docs/CUSTOMER_SERVICE_ADMIN_SETTINGS_V1.md'
       - 'supabase/tests/**'
       - 'supabase/functions/auth-preview/index.ts'
       - '.github/workflows/auth-preview-check.yml'
@@ -58,6 +60,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/customer_access_test_schema.sql
           psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_access_v1.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1.integration.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_service_admin_settings_v1.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_service_admin_settings_v1.integration.sql
           psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_access_v1_rollback.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1_rollback.integration.sql
       - name: Validate authentication preview
@@ -89,6 +93,17 @@ jobs:
           if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
             throw new Error('Server secret detected in browser source');
           }
+          const serviceSettingsSql = fs.readFileSync('supabase/drafts/customer_service_admin_settings_v1.sql', 'utf8');
+          const serviceSettingsTest = fs.readFileSync('supabase/tests/customer_service_admin_settings_v1.integration.sql', 'utf8');
+          const serviceSettingsDoc = fs.readFileSync('docs/CUSTOMER_SERVICE_ADMIN_SETTINGS_V1.md', 'utf8');
+          for (const required of ['customer_verification.master', 'customer_verification.phone_otp', 'customer_verification.nid', 'customer_verification.passport', 'customer_verification.biometric', 'customer_verification.ai_review', 'customer_payment.card_payments', 'ready_to_enable', 'platform_admin_roles', 'customer_service_feature_audit', 'security invoker', 'security definer']) {
+            if (!serviceSettingsSql.toLowerCase().includes(required.toLowerCase())) throw new Error('Customer service settings control missing: ' + required);
+          }
+          for (const required of ['master-off', 'append-only', 'payment', 'readiness', 'expired']) {
+            if (!serviceSettingsTest.toLowerCase().includes(required.toLowerCase())) throw new Error('Customer service settings test coverage missing: ' + required);
+          }
+          if (!serviceSettingsDoc.includes('No direct browser grants') || !serviceSettingsDoc.includes('OFF')) throw new Error('Customer service settings architecture contract incomplete');
+
           const customerSql = fs.readFileSync('supabase/drafts/customer_access_v1.sql', 'utf8');
           for (const required of ['enable row level security', 'customer_profiles_select_own', 'customer_profiles_update_own', 'customer_profiles_avatar_path_own', 'customer_avatars_select_own', 'customer_avatars_insert_own', 'customer_avatars_update_own', 'customer_avatars_delete_own', 'customer-avatars', '5242880', 'auth.uid()', 'security invoker', 'is_customer']) {
             if (!customerSql.toLowerCase().includes(required.toLowerCase())) throw new Error('Customer SQL security control missing: ' + required);
