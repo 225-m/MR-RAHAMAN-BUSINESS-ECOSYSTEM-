@@ -126,3 +126,63 @@ This document is an engineering proposal, not legal advice or a claim of complia
 - No AI-only final KYC decisions.
 - No SMS provider activation or paid resource creation as part of this draft.
 - No production database migration, Edge Function deployment, Pages deployment, PR merge, or live KYC enablement.
+
+
+## 11. Admin-controlled feature lifecycle — default OFF until app completion
+
+### Product decision
+Prepare the architecture and code paths for contact verification enhancements and future KYC, but keep these services **disabled by default** while the complete main application is still being finished. The Admin must be able to manage availability later from the main application's Admin profile/settings area, without a code change for ordinary enable/disable operations.
+
+### Admin settings and feature controls
+Provide a dedicated **Customer Verification & KYC** section under the authorized Main App Admin settings/profile settings. It should expose separate controls, not one ambiguous switch:
+- Email verification requirement / email verification channel.
+- Phone OTP verification channel.
+- NID verification.
+- Passport verification.
+- Biometric/liveness verification.
+- AI-assisted document review.
+- Overall Customer Verification/KYC master availability switch.
+
+Initial configuration:
+- Master availability: OFF.
+- Phone OTP: OFF until a provider is selected, configured, cost-approved, and tested.
+- NID / Passport / Biometric: OFF.
+- AI-assisted KYC: OFF.
+- No KYC provider credentials or paid resources are provisioned by this architecture draft.
+
+Email confirmation behavior required by the existing Auth security design must not be weakened merely because the optional KYC feature family is disabled. The setting controls the customer verification product workflow; it must not silently turn off baseline authentication protections.
+
+### Authorization and enforcement
+- Only a trusted, active Platform Owner or explicitly authorized Admin with a dedicated permission such as `customer_verification.settings.manage` may change these settings.
+- A normal Customer, employee without the dedicated permission, or client-side browser state must never be able to enable a feature.
+- Store settings in a database-backed, server-authoritative configuration (for example, a dedicated feature-settings table or existing feature-flag service after its schema is reviewed). Do not trust localStorage, user metadata, URL parameters, or frontend-only switches.
+- Every change records actor, previous value, new value, timestamp, reason/change note, and affected feature in an append-only audit trail.
+- Enforce feature state in the backend/API/Edge Function and relevant database workflows as well as the UI. Hiding a button is not access control.
+- Fail closed: if the setting cannot be read, treat the feature as OFF.
+- Apply independent feature flags and dependency checks. Turning on AI review must not automatically turn on document collection, biometrics, or external provider billing.
+- A feature may be enabled only when its release checklist is complete: provider configured where applicable, legal/privacy/security review approved, secrets stored securely, tests passed, support and incident process ready, and an explicit activation record exists.
+- For any paid SMS/KYC provider or billable infrastructure, require a separate cost disclosure and explicit approval before provisioning or activation.
+
+### Admin experience and safety
+- Show clear states: Disabled, Prepared, Requires Setup, Testing, Ready to Enable, Enabled, Suspended.
+- Show why a control is unavailable when prerequisites are missing.
+- Require confirmation and a reason when enabling sensitive KYC/biometric workflows; require step-up authentication for high-impact changes.
+- Support emergency suspension independently of normal feature enablement.
+- Display activation history and who changed each setting.
+- Do not expose provider secrets, raw identity documents, biometric data, or internal risk signals in Admin profile settings.
+- Admin controls configuration; access to actual KYC documents/cases must be a separate least-privilege permission with its own audit trail.
+
+### Rollout rule
+Until the complete app is declared ready and the release gates pass, all future verification/KYC services remain OFF. The architecture, database design, tests, UI settings design, and provider adapters may be prepared in non-production branches and disposable environments. No Production activation, provider subscription, paid resource, real document collection, or biometric processing occurs without separate explicit approval.
+
+### Acceptance criteria
+1. All new verification/KYC feature flags default to OFF, including after a fresh install or migration.
+2. Disabled features are unavailable through UI, API, RPC, Edge Functions, and direct database paths.
+3. Only the trusted authorized Admin can change settings; Customer and unauthorized staff attempts are denied and audited where safe.
+4. Admin can enable/disable each feature independently after readiness gates pass.
+5. Missing configuration, failed provider health checks, or failed authorization leaves the feature OFF.
+6. Changes are audited with actor, timestamp, old/new state, and reason.
+7. Emergency suspension takes effect server-side without waiting for a frontend refresh.
+8. Turning on one feature cannot implicitly activate another or incur an unapproved provider charge.
+9. Baseline email confirmation/authentication security is not weakened by the KYC master switch.
+10. The initial production configuration remains OFF until a separate release approval.
