@@ -8,7 +8,7 @@ on:
     paths:
       - 'auth-preview/**'
       - 'supabase/drafts/customer_access_v1.sql'
-      - 'supabase/tests/CUSTOMER-ACCESS-TEST-PLAN.md'
+      - 'supabase/tests/**'
       - 'supabase/functions/auth-preview/index.ts'
       - '.github/workflows/auth-preview-check.yml'
   pull_request:
@@ -24,6 +24,18 @@ permissions:
 jobs:
   static-auth-check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,6 +43,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Test Customer Access SQL in disposable PostgreSQL
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/customer_access_test_schema.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_access_v1.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1.integration.sql
       - name: Validate authentication preview
         run: |
           node <<'NODE'
