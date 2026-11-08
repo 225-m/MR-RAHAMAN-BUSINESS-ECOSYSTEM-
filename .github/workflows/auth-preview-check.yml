@@ -8,6 +8,7 @@ on:
     paths:
       - 'auth-preview/**'
       - 'supabase/drafts/customer_access_v1.sql'
+      - 'supabase/drafts/customer_access_v1_rollback.sql'
       - 'supabase/tests/**'
       - 'supabase/functions/auth-preview/index.ts'
       - '.github/workflows/auth-preview-check.yml'
@@ -56,6 +57,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/customer_access_test_schema.sql
           psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_access_v1.sql
           psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1.integration.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_access_v1_rollback.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1_rollback.integration.sql
       - name: Validate authentication preview
         run: |
           node <<'NODE'
