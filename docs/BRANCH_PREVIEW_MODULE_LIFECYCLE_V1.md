@@ -53,4 +53,4 @@ GitHub Actions Run #197 passed the Playwright Chromium UI smoke suite. The suite
 - A viewer without the relevant permissions sees no Request, Approve/Reject, or Apply controls.
 - A 390×844 mobile-sized Chromium viewport renders the panel without horizontal overflow.
 
-The Browser UI test uses a mock Supabase client so it can validate UI behavior without touching Production. Database authorization is separately exercised using real GoTrue-issued JWTs against isolated local Supabase in the same workflow. This is not a real Android device test; Android Chrome/device smoke testing remains outstanding.
+The CI suite now has two browser layers: a mocked Playwright role/viewport test, plus a real Branch Preview UI test wired to isolated local Supabase using GoTrue-issued JWT sessions. The real UI test covers requester → independent approver → separate applier and a 390×844 viewport. Neither test touches Production. This is not a real Android device test; Android Chrome/device smoke testing remains outstanding. The real local UI test is pending the current CI run.
