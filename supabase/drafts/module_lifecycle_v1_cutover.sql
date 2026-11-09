@@ -13,6 +13,12 @@ revoke all on function private.branch_module_set_enabled(uuid, boolean, text)
 -- Assert the legacy bypass is no longer callable by client/server API roles.
 do $assert$
 begin
+  if pg_catalog.has_table_privilege('authenticated','public.organization_modules','INSERT')
+     or pg_catalog.has_table_privilege('authenticated','public.organization_modules','UPDATE')
+     or pg_catalog.has_table_privilege('authenticated','public.organization_modules','DELETE') then
+    raise exception 'Authenticated direct organization_modules mutation is granted';
+  end if;
+
   if pg_catalog.has_function_privilege('authenticated',
        'public.branch_module_set_enabled(uuid,boolean,text)', 'EXECUTE')
      or pg_catalog.has_function_privilege('authenticated',
