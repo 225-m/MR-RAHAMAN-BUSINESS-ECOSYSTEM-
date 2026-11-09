@@ -150,6 +150,7 @@ A fresh read-only inspection of Production confirms the cutover blocker is still
 - `private.branch_module_set_enabled(uuid,boolean,text)` exists, is SECURITY DEFINER, and remains executable by `authenticated`.
 - `public.current_access_context_v1()`, the three Module Lifecycle V1 RPCs, and audited Platform Owner handover RPC are not installed in Production.
 - `organization_modules` has RLS enabled; authenticated has SELECT only and no direct INSERT/UPDATE/DELETE.
+- `app_roles`, `organization_members` and `role_permissions` have RLS enabled; authenticated has SELECT only and no direct DML. `platform_admin_roles` has RLS enabled and no authenticated SELECT/DML. The only authenticated member-related mutation RPCs found are branch access grant/revoke, which are permission-checked and audited; no organization role-promotion RPC is present in the Production catalog.
 - Active Platform Owners: 0. Organizations: 0. Organization members: 0.
 
 This confirms the old RPC is an active approval bypass even though direct table DML is denied. No Production grants, functions, rows, policies, or schema were changed by this inspection. Do not run the cutover until the V1 client path and all prerequisite safeguards are deployed and verified in an isolated staging environment.
