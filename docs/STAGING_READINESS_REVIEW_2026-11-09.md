@@ -132,7 +132,7 @@ Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 ## Remaining work
 
 1. Preserve the V1 canonical organization Owner key role_key = owner in all future role seeds and bootstrap code.
-2. Verify the new platform_owner_management_v1.sql integration tests. The draft now provides active-Owner-only grant/revoke RPCs, an append-only platform audit log, and an Owner-only audit-list RPC; direct API-role table access is revoked.
+2. Verify the new platform_owner_management_v1.sql integration tests. The draft now provides active-Owner-only single-slot handover RPC, an append-only platform audit log, and an Owner-only audit-list RPC; direct API-role table access is revoked.
 3. Perform real Android Chrome/device smoke tests. The 390×844 Playwright viewport test is not a physical Android device test.
 4. A full browser-to-local-Supabase session integration is still outstanding: the Playwright UI test uses a mocked client, while the separate local GoTrue JWT/PostgREST/RLS suite verifies real database authorization.
 5. Re-review the final legacy cutover plan against every deployed client and scheduled/Edge Function consumer. Keep Production unchanged until a separately approved release.
