@@ -1,4 +1,22 @@
 -- Disposable PostgreSQL fixture for Last Active Owner Guard V1.
+do $roles$
+begin
+  create role anon nologin;
+exception when duplicate_object then null;
+end;
+$roles$;
+do $roles$
+begin
+  create role authenticated nologin;
+exception when duplicate_object then null;
+end;
+$roles$;
+do $roles$
+begin
+  create role service_role nologin bypassrls;
+exception when duplicate_object then null;
+end;
+$roles$;
 create schema auth;
 create table auth.users(id uuid primary key);
 
