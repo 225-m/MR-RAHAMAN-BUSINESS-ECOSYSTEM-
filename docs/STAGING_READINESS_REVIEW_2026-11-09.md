@@ -41,7 +41,9 @@ Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/425426
 - The 14 migration SQL files were recovered from the Production migration-history `statements` arrays and added to `supabase/migrations/` on the feature branch. A keyword scan found no password, secret, service-role key, JWT-secret or API-key assignments in those SQL statements.
 - `supabase/config.toml` now configures an isolated local Supabase stack with Auth enabled and email confirmations disabled only for local tests.
 - A new CI job starts local Supabase, replays the checked-in migrations, applies the Module Lifecycle draft, creates users through local GoTrue, and exercises RPCs through PostgREST using issued access tokens.
-- The local GoTrue JWT/RLS job has been added. The first run successfully started the isolated Supabase stack and replayed all 14 recovered migrations; it then stopped on an outdated CLI status flag (`--env`). The workflow now uses the supported `supabase status -o env` form, and the local email Auth config uses the current `auth.email.enabled` key. A rerun is required to validate the actual JWT/RLS script. Until that passes, the disposable PostgreSQL suite remains the only confirmed security test.
+- The local GoTrue JWT/RLS job now passes in GitHub Actions Run #156. It starts an isolated Supabase stack, replays all 14 migrations, creates users through GoTrue, obtains access tokens, and calls the Module Lifecycle RPCs through PostgREST. The first attempt failed only because an obsolete CLI status flag was used; this was corrected to `supabase status -o env`. The local Auth config also uses the current `auth.email.enabled` key.
+
+Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42544161776
 
 The schema baseline blocker is addressed by restoring the recorded migration chain. The next blocker is validating that this chain replays cleanly under the local Supabase CLI and that GoTrue-issued JWTs exercise the expected PostgREST/RLS behavior. Do not treat the restored files as a Production migration or deploy them; they are a development/test baseline only.
 
