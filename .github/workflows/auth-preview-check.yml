@@ -12,6 +12,8 @@ on:
       - 'branch-preview/**'
       - 'docs/**'
       - 'supabase/drafts/**'
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
       - 'supabase/tests/**'
       - 'supabase/functions/auth-preview/index.ts'
       - '.github/workflows/auth-preview-check.yml'
@@ -34,6 +36,35 @@ permissions:
   contents: read
 
 jobs:
+  local-supabase-jwt-rls:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Start isolated local Supabase services
+        run: supabase start --exclude studio,storage,realtime,functions,analytics,mail
+      - name: Replay checked-in schema and run GoTrue JWT/RLS integration
+        run: |
+          supabase db reset --local
+          supabase status --env --output-format text > .env.local
+          set -a
+          source .env.local
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1.sql
+          node supabase/tests/module_lifecycle_v1_jwt_rls.mjs
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_cutover.sql
+      - name: Stop isolated local Supabase services
+        if: always()
+        run: supabase stop --no-backup
+
   static-auth-check:
     runs-on: ubuntu-latest
     services:
