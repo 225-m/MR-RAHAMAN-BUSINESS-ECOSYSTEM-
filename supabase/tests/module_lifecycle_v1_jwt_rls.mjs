@@ -1,9 +1,11 @@
 import { spawnSync } from "node:child_process";
 
-const API_URL = process.env.API_URL;
-const ANON_KEY = process.env.ANON_KEY;
-const DB_URL = process.env.DB_URL;
-if (!API_URL || !ANON_KEY || !DB_URL) throw new Error("API_URL, ANON_KEY and DB_URL are required");
+const API_URL = process.env.API_URL ?? process.env.SUPABASE_URL;
+const ANON_KEY = process.env.ANON_KEY ?? process.env.PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
+const DB_URL = process.env.DB_URL ?? process.env.POSTGRES_URL;
+if (!API_URL || !ANON_KEY || !DB_URL) {
+  throw new Error("Local Supabase API URL, publishable/anon key and database URL are required");
+}
 
 const ORG_ID = "10000000-0000-0000-0000-000000000001";
 const MODULE_ID = "50000000-0000-0000-0000-000000000001";
