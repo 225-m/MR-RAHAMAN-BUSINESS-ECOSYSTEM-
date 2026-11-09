@@ -161,6 +161,39 @@ begin
 end;
 $test$;
 
+-- T05c: approval must be revalidated at apply time if the approver's role grant is revoked.
+reset role;
+delete from public.role_permissions
+where role_id = '00000000-0000-0000-0000-000000000202'::uuid
+  and permission_id = '00000000-0000-0000-0000-000000000402'::uuid;
+set local role authenticated;
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T05c FAILED: apply accepted approval after approver permission was revoked';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end;
+$test$;
+
+reset role;
+insert into public.role_permissions(id,organization_id,role_id,permission_id)
+values (
+  '00000000-0000-0000-0000-000000000507'::uuid,
+  '00000000-0000-0000-0000-000000000001'::uuid,
+  '00000000-0000-0000-0000-000000000202'::uuid,
+  '00000000-0000-0000-0000-000000000402'::uuid
+);
+set local role authenticated;
+
 -- T06: separately authorized apply actor executes the approved change.
 select set_config('request.jwt.claims',
   pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
