@@ -82,7 +82,8 @@ jobs:
           const html = fs.readFileSync('auth-preview/index.html', 'utf8');
           const logoPath = 'assets/brand/mr-rahaman-business-ecosystem.svg';
           if (!fs.existsSync(logoPath)) throw new Error('Brand logo asset missing: ' + logoPath);
-          if (!html.includes('../' + logoPath)) throw new Error('Authentication preview does not reference the canonical brand logo');
+          const logoUrl = 'https://raw.githubusercontent.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/main/' + logoPath;
+          if (!html.includes(logoUrl)) throw new Error('Authentication preview does not reference the canonical brand logo');
           const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
             .map(match => match[1]).filter(Boolean);
           if (!scripts.length) throw new Error('No inline application script found');
@@ -128,7 +129,11 @@ jobs:
             throw new Error('Customer profile ownership predicate missing');
           }
           const edge = fs.readFileSync('supabase/functions/auth-preview/index.ts', 'utf8');
-          if (!edge.includes('Customer Dashboard') || !edge.includes('is_customer') || !edge.includes('customerAvatarInput') || !edge.includes('customer-avatars')) throw new Error('Edge Function is not synced with Customer avatar UI');
+          const embeddedMatch = edge.match(/const html = ("(?:[^"\\\\]|\\\\.)*");/s);
+          if (!embeddedMatch) throw new Error('Could not read embedded Edge Function HTML');
+          const embeddedHtml = JSON.parse(embeddedMatch[1]);
+          if (embeddedHtml !== html) throw new Error('Edge Function HTML is out of sync with auth-preview/index.html');
+          if (!edge.includes('Customer Dashboard') || !edge.includes('is_customer') || !edge.includes('customerAvatarInput') || !edge.includes('customer-avatars')) throw new Error('Edge Function is missing Customer avatar UI');
           console.log('PASS: JavaScript syntax, unique DOM IDs, DOM references, email-only auth, database gate, customer RLS draft, Edge Function sync, and no browser secrets.');
           NODE
 
