@@ -119,7 +119,7 @@ do $test$
 begin
   begin
     perform public.module_apply_approved_change_v1(
-      :'org_id'::uuid, :'change_id'::uuid
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
     );
     raise exception 'T07 FAILED: completed request applied twice';
   exception when sqlstate '55000' then
@@ -157,8 +157,8 @@ begin
 
   select count(*) into v_audit_count
   from public.module_audit_logs
-  where approval_request_id = :'approval_id'::uuid
-    and organization_id = :'org_id'::uuid
+  where approval_request_id = current_setting('test.approval_id')::uuid
+    and organization_id = current_setting('test.org_id')::uuid
     and action in ('MODULE_CHANGE_REQUESTED','MODULE_CHANGE_APPROVED',
                    'MODULE_ENABLED_AFTER_APPROVAL','MODULE_DISABLED_AFTER_APPROVAL');
 
