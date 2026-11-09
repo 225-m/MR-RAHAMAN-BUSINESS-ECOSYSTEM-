@@ -42,3 +42,15 @@ The Branch Preview CI validation now checks:
 ## Deployment boundary
 
 This commit is on the feature branch only. It does not publish GitHub Pages, deploy the Edge Function, apply SQL to Supabase Production, or revoke legacy RPC grants. Production still needs a coordinated V1 database deployment and client cutover after isolated tests and Owner safeguards pass.
+
+## Browser smoke test
+
+GitHub Actions Run #197 passed the Playwright Chromium UI smoke suite. The suite exercises a mocked organization session and verifies:
+
+- A requester can submit a request but cannot approve their own request.
+- A separate approver can approve and cannot Apply without module.manage.
+- A separate actor with module.manage can Apply an approved request.
+- A viewer without the relevant permissions sees no Request, Approve/Reject, or Apply controls.
+- A 390×844 mobile-sized Chromium viewport renders the panel without horizontal overflow.
+
+The Browser UI test uses a mock Supabase client so it can validate UI behavior without touching Production. Database authorization is separately exercised using real GoTrue-issued JWTs against isolated local Supabase in the same workflow. This is not a real Android device test; Android Chrome/device smoke testing remains outstanding.
