@@ -7,7 +7,7 @@
 begin;
 
 create table if not exists public.platform_audit_logs (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key default pg_catalog.gen_random_uuid(),
   actor_user_id uuid not null references auth.users(id),
   target_user_id uuid not null references auth.users(id),
   action text not null check (action in ('platform_owner.granted','platform_owner.revoked')),
@@ -34,7 +34,7 @@ as $function$
     where par.user_id = p_user_id
       and par.role_key = 'platform_owner'
       and par.revoked_at is null
-      and (par.expires_at is null or par.expires_at > pg_catalog.clock_timestamp())
+      and (par.expires_at is null or par.expires_at > pg_catalog.statement_timestamp())
   );
 $function$;
 
