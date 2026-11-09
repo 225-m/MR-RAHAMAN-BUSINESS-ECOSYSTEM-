@@ -16,9 +16,23 @@ Status: draft SQL and disposable PostgreSQL tests added on the feature branch. N
 - Use private SECURITY DEFINER trigger functions with an empty search_path and revoke direct API execution.
 - Keep direct browser table writes unavailable; triggers are defense in depth, not a grant of authority.
 
-## Important limitation before release
+## Permission floor
 
-The current V1 draft protects Owner role assignments and activation state. It does not yet prevent an administrator from removing critical role_permissions mappings from an otherwise active Owner role. That is a separate release blocker: the Owner permission floor must be specified and tested before this guard can be called complete. The canonical organization Owner key is set to owner in this draft and must be confirmed against the final role catalogue before Production use.
+An active organization Owner role must have all of the following governance permissions:
+
+- member.invite
+- member.manage
+- role.manage
+- organization.update
+- branch.manage
+- approval.approve
+- module.manage
+- audit.read
+- permission.read
+
+The draft rejects assigning an active member to an incomplete Owner role, rejects disabling/renaming the last complete Owner role, and blocks removal or replacement of a required permission mapping from the last active complete Owner role. The trigger re-checks the permission floor under the same organization-scoped advisory lock used by Owner membership changes.
+
+The canonical organization Owner key is set to owner in this draft and must still be confirmed against the final role catalogue before Production use. The guard is a draft until the latest permission-floor tests pass and the role key is reconciled.
 
 ## Disposable tests
 
@@ -27,7 +41,7 @@ The new fixture and integration test cover:
 - Last Platform Owner revoke, expiry, demotion and delete blocking.
 - Normal revocation of one of multiple Platform Owners.
 - Last organization Owner membership suspension, demotion and delete blocking.
-- Last Owner role deactivation blocking.
+- Last Owner role deactivation blocking.\n- Incomplete Owner role assignment denial.\n- Removal of a required permission from the final complete Owner role blocked.
 - Normal removal of a non-Owner member.
 
 CI runs these tests in a separate disposable PostgreSQL database. Passing tests do not deploy the draft or modify Production.
