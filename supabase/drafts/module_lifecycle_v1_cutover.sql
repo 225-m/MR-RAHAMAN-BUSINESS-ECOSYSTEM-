@@ -100,8 +100,10 @@ begin
   end if;
 
   if not (select c.relrowsecurity from pg_catalog.pg_class c
-          where c.oid = 'public.platform_audit_logs'::regclass) then
-    raise exception 'platform_audit_logs RLS is not enabled';
+          where c.oid = 'public.platform_audit_logs'::regclass)
+     or not (select c.relrowsecurity from pg_catalog.pg_class c
+             where c.oid = 'public.platform_admin_roles'::regclass) then
+    raise exception 'Platform Owner assignment/audit table RLS is not enabled';
   end if;
 end;
 $preflight$;
