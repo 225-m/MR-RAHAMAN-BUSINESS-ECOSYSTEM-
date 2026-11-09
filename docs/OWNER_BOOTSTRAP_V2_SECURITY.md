@@ -37,8 +37,8 @@ Do not set the allowlist environment variables, deploy this Edge Function, execu
 
 After the first bootstrap, use only the audited RPCs in supabase/drafts/platform_owner_management_v1.sql:
 
-- platform_owner_grant_v1 — active Platform Owner only; target Auth user must be email-verified; reason required.
-- platform_owner_revoke_v1 — active Platform Owner only; the Last Active Owner trigger prevents lockout.
+- platform_owner_grant_v1 — active Platform Owner transfers the single Owner slot to a different email-verified Auth user; paired revoke/grant audit events are written atomically.
+- platform_owner_revoke_v1 — direct removal of the final active Owner is blocked; use the audited handover RPC.
 - platform_owner_audit_list_v1 — active Platform Owner only.
 
 Direct API-role access to platform_admin_roles and platform_audit_logs is revoked. Audit records are append-only and read through the Owner-only audit RPC.
