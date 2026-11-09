@@ -70,7 +70,7 @@ module_apply_approved_change(org_id, module_change_request_id)
 
 - Application must be performed by a separately authorized actor; settle the exact permission contract before implementation. Do not silently reuse a permission that still means “approve and execute”.
 - Lock organization, module request, approval request, and organization_modules row in a consistent order.
-- Require linked approval status approved, linked change status approved, not expired, and at least one approved action by a user different from the requester.
+- Require linked approval status approved, linked change status approved, not expired, and at least one approved action by a user different from the requester. Revalidate that approver's organization membership, role activation and live approval.approve grant at apply time; a revoked or suspended approver must not leave a stale approval executable.
 - Recheck current caller membership/permission and module state inside the same transaction.
 - Recheck module availability, core-module protection, mandatory dependencies, and reverse dependencies.
 - Enable only when all mandatory dependencies are active and platform-enabled. V1 treats a populated minimum_version as an exact version pin; no lexicographic semver comparison is used.
@@ -131,6 +131,7 @@ Required:
 - Approval cannot be bypassed by calling old Branch RPC, direct table DML, a guessed RPC, or a public wrapper.
 - Approved request cannot be applied twice.
 - Rejected/pending/expired request cannot apply.
+- Revoking or suspending the approver after approval blocks apply until a currently authorized approval decision is obtained again.
 - Enable fails if mandatory dependency is missing/inactive.
 - Disable fails if any active module depends on it.
 - Core module disable is rejected.
