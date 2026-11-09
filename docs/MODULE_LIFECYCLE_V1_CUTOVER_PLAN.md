@@ -52,7 +52,7 @@ Do not restore execute grants on branch_module_set_enabled as an ordinary rollba
 - Real GoTrue JWT/PostgREST/RLS suite: PASS in prior run.
 - Playwright Chromium request/approve/apply and mobile viewport smoke test: PASS in Run #197.
 - Last Active Owner and permission-floor PostgreSQL suite: PASS in Run #205.
-- current_access_context_v1 JWT assertions and expanded cutover preflight/rollback checks were added after those runs; their latest CI run is pending.
+- GitHub Actions Run #249 static-auth-check passed the updated Playwright UI test, Owner guard tests, bootstrap source checks, successful cutover + fail-closed rollback assertions, and a negative preflight test proving that a missing current_access_context_v1 aborts before legacy grants are changed. The local GoTrue JWT suite with current_access_context_v1 assertions is still running.
 - No Production SQL, grants, deployment, or Pages publication was changed.
 
 ## Explicit release boundary
