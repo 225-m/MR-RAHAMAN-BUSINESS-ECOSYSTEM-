@@ -46,7 +46,7 @@ Deno.serve(async (req: Request) => {
 
     const admin = createClient(URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data, error } = await admin.rpc("bootstrap_first_platform_owner_v2", { p_expected_user_id: ALLOWED_USER_ID });
-    if (error) return new Response(JSON.stringify({ error: error.message }), { status: 409, headers });
+    if (error) return new Response(JSON.stringify({ error: "Bootstrap preconditions failed" }), { status: 409, headers });
     return new Response(JSON.stringify(data), { status: 200, headers });
   } catch {
     return new Response(JSON.stringify({ error: "Bootstrap request failed safely" }), { status: 500, headers });
