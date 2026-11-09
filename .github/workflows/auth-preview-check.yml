@@ -1,10 +1,9 @@
-name: Authentication Preview Checks
+name: MR RAHAMAN Security & Preview Checks
 
 on:
   push:
     branches:
       - feature/branch-module-v1
-      - feature/customer-access-v1
     paths:
       - 'index.html'
       - 'assets/brand/**'
