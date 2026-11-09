@@ -41,7 +41,7 @@ Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/425426
 - The 14 migration SQL files were recovered from the Production migration-history `statements` arrays and added to `supabase/migrations/` on the feature branch. A keyword scan found no password, secret, service-role key, JWT-secret or API-key assignments in those SQL statements.
 - `supabase/config.toml` now configures an isolated local Supabase stack with Auth enabled and email confirmations disabled only for local tests.
 - A new CI job starts local Supabase, replays the checked-in migrations, applies the Module Lifecycle draft, creates users through local GoTrue, and exercises RPCs through PostgREST using issued access tokens.
-- The local GoTrue JWT/RLS job has been added but its first CI result is still pending. Until it passes, the disposable PostgreSQL suite remains the only confirmed test.
+- The local GoTrue JWT/RLS job has been added. The first run successfully started the isolated Supabase stack and replayed all 14 recovered migrations; it then stopped on an outdated CLI status flag (`--env`). The workflow now uses the supported `supabase status -o env` form, and the local email Auth config uses the current `auth.email.enabled` key. A rerun is required to validate the actual JWT/RLS script. Until that passes, the disposable PostgreSQL suite remains the only confirmed security test.
 
 The schema baseline blocker is addressed by restoring the recorded migration chain. The next blocker is validating that this chain replays cleanly under the local Supabase CLI and that GoTrue-issued JWTs exercise the expected PostgREST/RLS behavior. Do not treat the restored files as a Production migration or deploy them; they are a development/test baseline only.
 
@@ -96,6 +96,6 @@ After restoring a reproducible schema baseline, add a separate CI job that start
 
 ## Current status
 
-**Disposable PostgreSQL CI: PASS. Local Supabase GoTrue JWT/RLS CI: ADDED, FIRST RUN PENDING. Cloud staging: NOT CREATED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
+**Disposable PostgreSQL CI: PASS. Local Supabase stack + all 14 migrations: REPLAYED SUCCESSFULLY. GoTrue JWT/RLS test script: ADDED; CI rerun pending after CLI/config correction. Cloud staging: NOT CREATED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
 
 Next engineering task: validate the new local Supabase CI run, correct any migration/config/test incompatibilities, and only then report real JWT/RLS test results.
