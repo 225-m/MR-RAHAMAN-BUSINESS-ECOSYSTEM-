@@ -130,7 +130,8 @@ jobs:
           }
           const edge = fs.readFileSync('supabase/functions/auth-preview/index.ts', 'utf8');
           const embeddedStart = edge.indexOf('const html = ') + 'const html = '.length;
-          const embeddedEnd = edge.indexOf(';\\n\\nDeno.serve', embeddedStart);
+          const handlerStart = edge.indexOf('Deno.serve', embeddedStart);
+          const embeddedEnd = edge.lastIndexOf(';', handlerStart);
           if (embeddedStart < 'const html = '.length || embeddedEnd < 0) throw new Error('Could not read embedded Edge Function HTML');
           const embeddedHtml = JSON.parse(edge.slice(embeddedStart, embeddedEnd));
           if (embeddedHtml !== html) throw new Error('Edge Function HTML is out of sync with auth-preview/index.html');
