@@ -28,6 +28,9 @@ select set_config('test.org_id', :'org_id', true);
 select set_config('test.requester_id', :'requester_id', true);
 select set_config('test.approver_id', :'approver_id', true);
 select set_config('test.apply_id', :'apply_id', true);
+select set_config('test.module_key', :'module_key', true);
+select set_config('test.request_type', :'request_type', true);
+select set_config('test.expected_status', case when :'request_type' = 'disable' then 'disabled' else 'active' end, true);
 select set_config('test.approval_id', '', true);
 select set_config('test.change_id', '', true);
 
@@ -78,6 +81,23 @@ begin
 end;
 $test$;
 
+-- T03b: a user without module.request cannot create a request.
+do $test$
+begin
+  begin
+    perform public.module_request_change_v1(
+      current_setting('test.org_id')::uuid,
+      current_setting('test.module_key'),
+      current_setting('test.request_type'),
+      'Unauthorized request attempt'
+    );
+    raise exception 'T03b FAILED: unauthorized user created a module request';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end;
+$test$;
+
 -- T04: Apply is rejected while the request is still pending.
 select set_config('request.jwt.claims',
   pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
@@ -104,6 +124,20 @@ select set_config('request.jwt.claim.sub', :'approver_id', true);
 select public.module_approval_decide_v1(
   :'org_id'::uuid, :'approval_id'::uuid, 'approved', 'independent approval'
 );
+
+-- T05b: an approver without module.manage cannot apply the approved request.
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T05b FAILED: approver applied without module.manage';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end;
+$test$;
 
 -- T06: separately authorized apply actor executes the approved change.
 select set_config('request.jwt.claims',
@@ -142,6 +176,21 @@ begin
 
   if v_status <> 'completed' then
     raise exception 'T08 FAILED: expected completed status, got %', v_status;
+  end if;
+
+  if not exists (
+    select 1 from public.organization_modules
+    where organization_id = current_setting('test.org_id')::uuid
+      and module_id = '00000000-0000-0000-0000-000000000301'::uuid
+      and status = current_setting('test.expected_status')
+  ) then
+    raise exception 'T08 FAILED: module state did not match approved request';
+  end if;
+
+  if pg_catalog.has_table_privilege('authenticated','public.organization_modules','INSERT')
+     or pg_catalog.has_table_privilege('authenticated','public.organization_modules','UPDATE')
+     or pg_catalog.has_table_privilege('authenticated','public.organization_modules','DELETE') then
+    raise exception 'T08 FAILED: authenticated direct module table mutation is granted';
   end if;
 
   select count(*) into v_action_count
