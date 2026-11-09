@@ -139,3 +139,8 @@ Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 6. Production cutover/deployment remains unauthorized and unapplied.
 
 Production remains unchanged.
+
+
+## Android Chrome test preparation
+
+A physical Android Chrome checklist is now available at [ANDROID_CHROME_SMOKE_TEST_PLAN.md](./ANDROID_CHROME_SMOKE_TEST_PLAN.md). Playwright 390×844 viewport testing is not treated as a physical Android test. Device execution remains blocked on a safe isolated preview URL; Production must not be used for this smoke test.
