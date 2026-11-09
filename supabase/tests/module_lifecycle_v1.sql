@@ -313,13 +313,18 @@ end;
 $test$;
 
 reset role;
-if (select count(*) from public.organization_modules
-    where organization_id = :'org_id'::uuid
+do $test$
+begin
+  if not exists (
+    select 1 from public.organization_modules
+    where organization_id = current_setting('test.org_id')::uuid
       and module_id = '00000000-0000-0000-0000-000000000301'::uuid
-      and status = 'disabled') <> 1 then
-  \echo 'T09 FAILED: blocked dependency attempt changed module state'
-  \quit 1
-end if;
+      and status = 'disabled'
+  ) then
+    raise exception 'T09 FAILED: blocked dependency attempt changed module state';
+  end if;
+end;
+$test$;
 
 insert into public.organization_modules(
   id, organization_id, module_id, status, installed_version,
