@@ -120,9 +120,19 @@ The Branch Preview source at branch-preview/index.html now includes an organizat
 
 Implementation notes: docs/BRANCH_PREVIEW_MODULE_LIFECYCLE_V1.md.
 
+## Last Active Owner protection — draft
+
+Read-only Production schema review confirmed that platform_admin_roles, app_roles and organization_members have no existing last-owner protection triggers. The Production inventory currently contains zero platform Owner rows, zero organizations and zero organization members.
+
+A separate draft, supabase/drafts/last_active_owner_guard_v1.sql, and disposable fixture/tests have been added on the feature branch. The draft protects the last active platform_owner and canonical organization role_key owner against revoke, expiry, demotion, suspension, deletion and role deactivation. Advisory transaction locks are used to serialize concurrent removal attempts.
+
+Known release blocker: the draft does not yet protect critical role_permissions mappings from being stripped out of the final Owner role. The canonical organization Owner role key also needs final confirmation. The Owner guard is therefore NOT complete and must not be applied to Production. CI execution for the new Owner tests has not yet been confirmed.
+
+Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
+
 ## Remaining work
 
-1. Run and verify CI after the Branch Preview changes.
+1. Run and verify CI after the Branch Preview and Owner guard changes.
 2. Execute Browser smoke tests with real local GoTrue JWT sessions against the isolated stack; test Request, self-approval denial, independent approval, Apply, permission revocation, and audit visibility through the UI.
 3. Perform Android-sized viewport and real-device smoke tests when an Android browser/device test environment is available. Do not claim real-device testing from desktop viewport emulation.
 4. Implement and test Last Active Owner protections at the database layer.
