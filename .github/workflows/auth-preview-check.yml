@@ -65,6 +65,8 @@ jobs:
           set +a
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1.sql
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/current_access_context_v1.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/last_active_owner_guard_v1.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/platform_owner_management_v1.sql
           node supabase/tests/module_lifecycle_v1_jwt_rls.mjs
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_cutover.sql
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_fail_closed_rollback.sql
