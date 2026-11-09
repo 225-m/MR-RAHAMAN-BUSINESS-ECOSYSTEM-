@@ -224,7 +224,18 @@ insert into public.role_permissions(id,organization_id,role_id,permission_id) va
   ('00000000-0000-0000-0000-000000000506','00000000-0000-0000-0000-000000000001','00000000-0000-0000-0000-000000000204','00000000-0000-0000-0000-000000000404');
 
 insert into public.platform_modules(id,module_key,is_active,is_core,current_version)
-values ('00000000-0000-0000-0000-000000000301','test_sales_module',true,false,'1.0.0');
+values
+ ('00000000-0000-0000-0000-000000000301','test_sales_module',true,false,'1.0.0'),
+ ('00000000-0000-0000-0000-000000000302','test_dependency_module',true,false,'1.0.0');
+
+insert into public.module_dependencies(id,module_id,depends_on_module_id,minimum_version,is_mandatory)
+values (
+ '00000000-0000-0000-0000-000000000303',
+ '00000000-0000-0000-0000-000000000301',
+ '00000000-0000-0000-0000-000000000302',
+ '1.0.0',
+ true
+);
 
 insert into public.organization_modules(
   id,organization_id,module_id,status,installed_version,configuration,enabled_at,enabled_by
