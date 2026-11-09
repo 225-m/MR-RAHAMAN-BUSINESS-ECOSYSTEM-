@@ -39,23 +39,23 @@ begin
   if p_organization_id is null or p_module_key is null or pg_catalog.btrim(p_module_key) = '' then
     raise exception 'Organization and module key are required' using errcode = '22023';
   end if;
-  if p_request_type not in ('enable', 'disable') then
+  if p_request_type is null or p_request_type not in ('enable', 'disable') then
     raise exception 'Only enable/disable requests are supported in V1' using errcode = '22023';
   end if;
   if pg_catalog.length(v_reason) < 5 then
     raise exception 'A reason of at least five characters is required' using errcode = '22023';
   end if;
-  if not private.has_org_permission(p_organization_id, 'module.request') then
-    raise exception 'module.request permission required' using errcode = '42501';
-  end if;
-
-  -- Serialize module lifecycle changes within this organization.
+  -- Serialize lifecycle changes, then revalidate the caller's live permission.
+  -- Role/member changes in this organization must not race past this authorization check.
   perform 1
   from public.organizations o
   where o.id = p_organization_id and o.status = 'active'
   for update;
   if not found then
     raise exception 'Active organization not found' using errcode = '42501';
+  end if;
+  if not private.has_org_permission(p_organization_id, 'module.request') then
+    raise exception 'module.request permission required' using errcode = '42501';
   end if;
 
   select pm.* into v_module
@@ -189,18 +189,17 @@ begin
   if v_user_id is null then
     raise exception 'Authentication required' using errcode = '42501';
   end if;
-  if p_decision not in ('approved', 'rejected') then
+  if p_decision is null or p_decision not in ('approved', 'rejected') then
     raise exception 'Decision must be approved or rejected' using errcode = '22023';
   end if;
-  if not private.has_org_permission(p_organization_id, 'approval.approve') then
-    raise exception 'approval.approve permission required' using errcode = '42501';
-  end if;
-
   perform 1 from public.organizations o
   where o.id = p_organization_id and o.status = 'active'
   for update;
   if not found then
     raise exception 'Active organization not found' using errcode = '42501';
+  end if;
+  if not private.has_org_permission(p_organization_id, 'approval.approve') then
+    raise exception 'approval.approve permission required' using errcode = '42501';
   end if;
 
   select ar.* into v_approval
@@ -291,15 +290,14 @@ begin
   if v_user_id is null then
     raise exception 'Authentication required' using errcode = '42501';
   end if;
-  if not private.has_org_permission(p_organization_id, 'module.manage') then
-    raise exception 'module.manage permission required to apply approved changes' using errcode = '42501';
-  end if;
-
   perform 1 from public.organizations o
   where o.id = p_organization_id and o.status = 'active'
   for update;
   if not found then
     raise exception 'Active organization not found' using errcode = '42501';
+  end if;
+  if not private.has_org_permission(p_organization_id, 'module.manage') then
+    raise exception 'module.manage permission required to apply approved changes' using errcode = '42501';
   end if;
 
   select mcr.* into v_change
@@ -319,8 +317,10 @@ begin
   where ar.id = v_change.approval_request_id
     and ar.organization_id = p_organization_id
   for update;
-  if not found or v_approval.status <> 'approved' then
-    raise exception 'A linked approved decision is required' using errcode = '55000';
+  if not found or v_approval.status <> 'approved'
+     or v_change.requested_by is distinct from v_approval.requested_by
+     or v_approval.request_payload->>'module_change_request_id' is distinct from v_change.id::text then
+    raise exception 'A matching linked approved decision is required' using errcode = '55000';
   end if;
   if v_approval.expires_at is not null and v_approval.expires_at <= pg_catalog.now() then
     raise exception 'Approved request has expired' using errcode = '55000';
