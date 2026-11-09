@@ -129,9 +129,10 @@ jobs:
             throw new Error('Customer profile ownership predicate missing');
           }
           const edge = fs.readFileSync('supabase/functions/auth-preview/index.ts', 'utf8');
-          const embeddedMatch = edge.match(/const html = ("(?:[^"\\\\]|\\\\.)*");/s);
-          if (!embeddedMatch) throw new Error('Could not read embedded Edge Function HTML');
-          const embeddedHtml = JSON.parse(embeddedMatch[1]);
+          const embeddedStart = edge.indexOf('const html = ') + 'const html = '.length;
+          const embeddedEnd = edge.indexOf(';\\n\\nDeno.serve', embeddedStart);
+          if (embeddedStart < 'const html = '.length || embeddedEnd < 0) throw new Error('Could not read embedded Edge Function HTML');
+          const embeddedHtml = JSON.parse(edge.slice(embeddedStart, embeddedEnd));
           if (embeddedHtml !== html) throw new Error('Edge Function HTML is out of sync with auth-preview/index.html');
           if (!edge.includes('Customer Dashboard') || !edge.includes('is_customer') || !edge.includes('customerAvatarInput') || !edge.includes('customer-avatars')) throw new Error('Edge Function is missing Customer avatar UI');
           console.log('PASS: JavaScript syntax, unique DOM IDs, DOM references, email-only auth, database gate, customer RLS draft, Edge Function sync, and no browser secrets.');
