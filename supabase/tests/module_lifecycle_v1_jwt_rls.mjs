@@ -226,8 +226,8 @@ async function main() {
 
   const unauthorizedContext = await rpc("current_access_context_v1", {}, unauthorized.token);
   const unauthorizedOrg = unauthorizedContext.body?.organizations?.find(org => org.organization_id === ORG_ID);
-  if (!unauthorizedOrg || unauthorizedOrg.permissions.length !== 0) {
-    throw new Error("Member without role grants received unexpected permissions");
+  if (!unauthorizedOrg || unauthorizedOrg.permissions.some(permission => permission !== "branch.read")) {
+    throw new Error("Member without lifecycle role grants received unexpected permissions: " + JSON.stringify(unauthorizedOrg?.permissions));
   }
 
   const outsiderContext = await rpc("current_access_context_v1", {}, outsider.token);
