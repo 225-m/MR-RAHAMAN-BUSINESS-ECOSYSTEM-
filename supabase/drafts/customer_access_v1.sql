@@ -224,6 +224,9 @@ begin
 end;
 $function$;
 
+-- The public SECURITY INVOKER wrapper must be able to resolve this private function.
+-- Schema USAGE does not grant table access; the private tables remain ungranted.
+grant usage on schema private to authenticated;
 revoke all on function private.current_access_context_v1() from public, anon, authenticated;
 grant execute on function private.current_access_context_v1() to authenticated;
 
