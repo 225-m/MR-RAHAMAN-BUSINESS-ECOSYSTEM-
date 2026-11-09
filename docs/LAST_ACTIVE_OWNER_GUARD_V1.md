@@ -32,7 +32,7 @@ An active organization Owner role must have all of the following governance perm
 
 The draft rejects assigning an active member to an incomplete Owner role, rejects disabling/renaming the last complete Owner role, and blocks removal or replacement of a required permission mapping from the last active complete Owner role. The trigger re-checks the permission floor under the same organization-scoped advisory lock used by Owner membership changes.
 
-The canonical organization Owner key is set to owner in this draft and must still be confirmed against the final role catalogue before Production use. The expanded disposable PostgreSQL permission-floor suite passed in GitHub Actions Run #205 (static-auth-check). The draft remains unapplied to Production.
+The 14 recovered migrations contain no organization Owner seed because Production currently has no organizations or members. The V2 first-owner bootstrap draft defines role_key = owner and the Owner guard uses that same canonical V1 key; future role seeds must preserve this contract. The expanded disposable PostgreSQL permission-floor suite passed in GitHub Actions Run #205 (static-auth-check). The draft remains unapplied to Production.
 
 ## Disposable tests
 
