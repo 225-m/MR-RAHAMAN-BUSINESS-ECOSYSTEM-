@@ -44,6 +44,17 @@ create table public.app_roles(
  is_active boolean not null default true
 );
 
+create table public.permissions(
+ id uuid primary key,
+ permission_key text not null unique
+);
+
+create table public.role_permissions(
+ organization_id uuid not null,
+ role_id uuid not null,
+ permission_id uuid not null
+);
+
 create table public.organization_members(
  id uuid primary key,
  organization_id uuid not null references public.organizations(id),
