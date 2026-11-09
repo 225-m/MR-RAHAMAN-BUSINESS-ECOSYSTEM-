@@ -125,13 +125,13 @@ Read-only Production schema review confirmed that platform_admin_roles, app_role
 
 A separate draft, supabase/drafts/last_active_owner_guard_v1.sql, and disposable fixture/tests have been added on the feature branch. The draft protects the last active platform_owner and canonical organization role_key owner against revoke, expiry, demotion, suspension, deletion and role deactivation. Advisory transaction locks are used to serialize concurrent removal attempts.
 
-The draft now defines a nine-permission governance floor for organization Owner roles and adds triggers to reject incomplete Owner assignment and removal of required grants from the final complete Owner role. Disposable tests now include those paths. GitHub Actions Run #205 passed the expanded disposable PostgreSQL Owner permission-floor suite, including incomplete Owner assignment denial and blocking removal of a required permission from the final complete Owner role. The canonical organization Owner key (owner) still needs confirmation against the final role catalogue. Owner protection remains a draft and must not be applied to Production.
+The draft now defines a nine-permission governance floor for organization Owner roles and adds triggers to reject incomplete Owner assignment and removal of required grants from the final complete Owner role. Disposable tests now include those paths. GitHub Actions Run #205 passed the expanded disposable PostgreSQL Owner permission-floor suite, including incomplete Owner assignment denial and blocking removal of a required permission from the final complete Owner role. The 14 recovered migrations contain no organization Owner seed because Production has no organizations or members. The V2 first-owner bootstrap defines role_key = owner, matching the Owner guard's canonical V1 contract. Owner protection remains a draft and must not be applied to Production.
 
 Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 
 ## Remaining work
 
-1. Confirm the canonical organization Owner role key against the final role catalogue; the current draft uses role_key = owner.
+1. Preserve the V1 canonical organization Owner key role_key = owner in all future role seeds and bootstrap code.
 2. Add audited platform Owner grant/revoke management operations. Current RLS denies direct client DML, but platform role change audit coverage and a reviewed management RPC remain a release gate.
 3. Perform real Android Chrome/device smoke tests. The 390×844 Playwright viewport test is not a physical Android device test.
 4. A full browser-to-local-Supabase session integration is still outstanding: the Playwright UI test uses a mocked client, while the separate local GoTrue JWT/PostgREST/RLS suite verifies real database authorization.
