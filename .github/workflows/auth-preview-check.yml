@@ -92,6 +92,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Browser and mobile viewport Module Lifecycle smoke tests
+        run: node supabase/tests/branch_preview_lifecycle_browser.mjs
       - name: Test Customer Access SQL in disposable PostgreSQL
         env:
           PGHOST: localhost
