@@ -28,6 +28,8 @@ on:
       - 'branch-preview/**'
       - 'docs/**'
       - 'supabase/drafts/**'
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
       - 'supabase/tests/**'
       - 'supabase/functions/auth-preview/index.ts'
       - '.github/workflows/auth-preview-check.yml'
