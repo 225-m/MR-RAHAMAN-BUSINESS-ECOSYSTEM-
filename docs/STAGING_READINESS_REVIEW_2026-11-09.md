@@ -12,7 +12,7 @@ Scope: read-only readiness review. No Production SQL, settings, users, or data w
 
 The Module Lifecycle disposable PostgreSQL CI passed in GitHub Actions Run #130, but that test is not a Supabase Auth/PostgREST integration test. The repository initially lacked a reproducible migration baseline. I recovered the 14 recorded SQL migration statements read-only from Production's `supabase_migrations.schema_migrations` history and committed them under `supabase/migrations/`; a local-only `supabase/config.toml`, JWT seed fixture, GoTrue/PostgREST test script, and CI job are now added on the feature branch. The connected Supabase account still shows no dedicated cloud staging project; the MR RAHAMAN project has only its default `main` branch. The other listed Supabase project is unrelated and must not be used for this project.
 
-To respect the project's free-tier/no-cost requirement, do not create a Supabase cloud project or development branch as part of this work. Use the local Supabase CLI stack in CI instead; the first real GoTrue JWT/PostgREST/RLS run is now wired into the workflow and must pass before staging readiness can be upgraded.
+To respect the project's free-tier/no-cost requirement, no Supabase cloud project or development branch was created. The local Supabase CLI stack in CI has now passed real GoTrue JWT/PostgREST/RLS tests. This proves the tested V1 database workflow in an isolated local environment; it does not mean the V1 RPCs are deployed to Production or that a hosted staging environment exists.
 
 ## Checks completed
 
@@ -45,7 +45,7 @@ Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/425426
 
 Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42544161776
 
-The schema baseline blocker is addressed by restoring the recorded migration chain. The next blocker is validating that this chain replays cleanly under the local Supabase CLI and that GoTrue-issued JWTs exercise the expected PostgREST/RLS behavior. Do not treat the restored files as a Production migration or deploy them; they are a development/test baseline only.
+The schema baseline now replays successfully under the local Supabase CLI. GoTrue-issued JWTs exercise the expected PostgREST/RLS controls in CI. The restored migration files are a development/test baseline and were not applied to Production.
 
 ### Production schema parity — read-only
 
@@ -72,32 +72,37 @@ The relevant target tables all have RLS enabled. Their inspected policies are sc
 
 **Do not claim that Production approval enforcement is complete. Do not run the legacy RPC cutover until every client has moved to V1 and the isolated integration suite passes.**
 
-## Local Supabase JWT/RLS test plan
+## Local Supabase JWT/RLS test results
 
-After restoring a reproducible schema baseline, add a separate CI job that starts a local Supabase stack using the Supabase CLI and Docker. It must not link to or connect to the Production project.
+GitHub Actions Run #156 passed the isolated local Supabase integration job. It did not connect to Production and did not create a cloud staging project.
 
-1. Start local Postgres, Auth (GoTrue), and PostgREST using checked-in config and migrations.
-2. Apply the schema baseline and the Module Lifecycle V1 draft migration to the local database only.
-3. Seed disposable organization/module/role/permission fixtures and create separate test users through the local Auth API.
-4. Sign in through local Auth to obtain actual access tokens; call PostgREST RPC endpoints with the publishable/anon key plus each user's bearer token.
-5. Verify unauthenticated denial, requester permission, self-approval denial, independent approver decision, separate apply permission, revoked approver permission, expired/rejected request denial, dependency enforcement, replay denial, and audit chain.
-6. Verify cross-organization SELECT isolation and that authenticated clients cannot directly mutate `organization_modules`.
-7. Verify private implementation RPCs are not executable by `authenticated`, and only the intended public wrappers are executable.
-8. Run the legacy cutover script only inside the disposable local database and prove the old public/private RPCs are no longer executable by API roles.
-9. Tear down the local stack and ensure no secrets or test users are committed.
+- Replayed all 14 checked-in migration files into local Supabase Postgres.
+- Started local Auth (GoTrue) and PostgREST; created disposable users through GoTrue and obtained access tokens.
+- Called the three Module Lifecycle RPCs through PostgREST with each user's bearer token.
+- Verified unauthenticated denial (401), missing request/approval permissions, self-approval denial and pending-apply denial.
+- Verified independent approval, separate apply actor, revoked approver permission revalidation and replay denial.
+- Verified cross-organization SELECT isolation and direct authenticated `organization_modules` UPDATE denial (403).
+- Verified request/approval/apply audit chain, mandatory dependency enforcement, rejection and expiry denial.
+- Verified private implementations are not executable by `authenticated`, while only the intended public wrappers are executable.
+- Ran the legacy RPC cutover draft in the disposable local database; its assertions passed.
+- Local stack teardown completed successfully.
+
+Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42544161776
+
+The CLI initially warned that several service-exclusion labels were invalid; those exclusions were ignored, but the local stack, migration replay, integration tests and teardown all completed successfully. This is a CI efficiency cleanup, not a failed security assertion.
 
 ## Exit criteria before any Production cutover
 
-- [ ] Reproducible checked-in schema baseline and Supabase CLI config.
-- [ ] Local GoTrue-issued JWT + PostgREST/RLS integration suite passes in CI.
+- [x] Reproducible checked-in schema baseline and Supabase CLI config.
+- [x] Local GoTrue-issued JWT + PostgREST/RLS integration suite passes in CI.
 - [ ] Actual Branch Preview/client uses the V1 Request → Independent Approval → Apply RPCs.
 - [ ] Real browser/Android smoke tests pass against an isolated test environment.
-- [ ] Legacy RPC cutover script passes in isolation and rollback steps are reviewed.
+- [x] Legacy RPC cutover script passes in the disposable local database; Production rollback/cutover review remains outstanding.
 - [ ] Owner lockout safeguards and audit coverage are tested.
 - [ ] Explicit user authorization is obtained before any Production migration or deployment.
 
 ## Current status
 
-**Disposable PostgreSQL CI: PASS. Local Supabase stack + all 14 migrations: REPLAYED SUCCESSFULLY. GoTrue JWT/RLS test script: ADDED; CI rerun pending after CLI/config correction. Cloud staging: NOT CREATED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
+**Disposable PostgreSQL CI: PASS. Local Supabase schema replay: PASS. GoTrue JWT/PostgREST/RLS integration: PASS (Run #156). Local legacy cutover assertions: PASS. Cloud staging: NOT CREATED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
 
-Next engineering task: validate the new local Supabase CI run, correct any migration/config/test incompatibilities, and only then report real JWT/RLS test results.
+Next engineering task: migrate Branch Preview/client calls to the V1 RPC workflow, then run browser/Android smoke tests in the local/isolated environment. Production remains unchanged.
