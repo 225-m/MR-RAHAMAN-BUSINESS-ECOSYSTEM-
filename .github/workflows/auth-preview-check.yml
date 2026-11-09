@@ -138,15 +138,15 @@ jobs:
           const fs = require('node:fs');
           const vm = require('node:vm');
           const html = fs.readFileSync('branch-preview/index.html', 'utf8');
-          const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)]
+          const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
             .map(match => match[1]).filter(Boolean);
           if (!scripts.length) throw new Error('No Branch Module application script found');
           for (const script of scripts) new vm.Script(script);
 
-          const ids = [...html.matchAll(/\\bid=["']([^"']+)["']/g)].map(match => match[1]);
+          const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(match => match[1]);
           const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
           if (duplicates.length) throw new Error('Duplicate Branch DOM IDs: ' + [...new Set(duplicates)].join(', '));
-          const references = [...html.matchAll(/\\$\\(["']([^"']+)["']\\)/g)].map(match => match[1]);
+          const references = [...html.matchAll(/\$\(["']([^"']+)["']\)/g)].map(match => match[1]);
           const missing = [...new Set(references.filter(id => !ids.includes(id)))];
           if (missing.length) throw new Error('Missing Branch DOM IDs: ' + missing.join(', '));
 
@@ -154,13 +154,13 @@ jobs:
           if (!html.includes('current_access_context_v1') || !html.includes('branch.read')) {
             throw new Error('Branch authorization must use the database access context and branch.read');
           }
-          if (/!\\s*u\\.email_confirmed_at\\s*\\|\\|\\s*!\\s*u\\.phone_confirmed_at/.test(html)) {
+          if (/!\s*u\.email_confirmed_at\s*\|\|\s*!\s*u\.phone_confirmed_at/.test(html)) {
             throw new Error('Branch Module must not require phone verification in email-only v1');
           }
           for (const required of ['branch_list_v1', 'branch_create', 'branch_update', 'branch_set_status', 'branch_detail_v1', 'branch_upsert_profile', 'branch_add_contact', 'branch_set_operating_hours', 'branch_set_setting', 'branch_audit_list_v1']) {
             if (!html.includes(required)) throw new Error('Branch RPC/UI integration missing: ' + required);
           }
-          if (/SUPABASE_SERVICE_ROLE_KEY\\s*=\\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
+          if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
             throw new Error('Server secret detected in Branch browser source');
           }
 
@@ -173,7 +173,7 @@ jobs:
           }
 
           const branchSql = fs.readFileSync('branch-preview/migrations/branch-target-finance-draft.sql', 'utf8');
-          if (!branchSql.includes('DRAFT ONLY') || !/rollback;\\s*$/i.test(branchSql.trim())) {
+          if (!branchSql.includes('DRAFT ONLY') || !/rollback;\s*$/i.test(branchSql.trim())) {
             throw new Error('Branch target/finance SQL must remain an unapplied rollback-only draft');
           }
           console.log('PASS: Branch JS syntax, DOM references, email-only access gate, branch RPC integration, browser secret scan, location dataset, and draft SQL safety.');
