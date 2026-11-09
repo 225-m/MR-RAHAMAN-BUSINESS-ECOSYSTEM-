@@ -73,11 +73,19 @@ module_apply_approved_change(org_id, module_change_request_id)
 - Require linked approval status approved, linked change status approved, not expired, and at least one approved action by a user different from the requester.
 - Recheck current caller membership/permission and module state inside the same transaction.
 - Recheck module availability, core-module protection, mandatory dependencies, and reverse dependencies.
-- Enable only when all mandatory dependencies are active.
+- Enable only when all mandatory dependencies are active and platform-enabled. V1 treats a populated minimum_version as an exact version pin; no lexicographic semver comparison is used.
 - Disable only when no active module has a mandatory dependency on the target.
 - Do not compare version strings lexicographically. Until a tested semantic-version comparator exists, enforce exact supported version compatibility.
 - Update organization_modules, mark the change request completed, and append module_audit_logs with approval_request_id, requester/approver/apply actor and old/new states in the same transaction.
 - Never delete module data, business records, files or historical audit events.
+
+## Draft implementation and automated test coverage
+
+- Draft SQL: `supabase/drafts/module_lifecycle_v1.sql` defines private SECURITY DEFINER implementations and public SECURITY INVOKER wrappers.
+- Coordinated cutover draft: `supabase/drafts/module_lifecycle_v1_cutover.sql` revokes authenticated/service_role/PUBLIC execution from both legacy Branch RPC signatures. Do not execute until all clients use V1.
+- Disposable fixture: `supabase/tests/fixtures/module_lifecycle_v1_schema.sql` models the verified table/constraint contract.
+- Integration harness: `supabase/tests/module_lifecycle_v1.sql` checks self-approval denial, unauthorized approval denial, pending-apply denial, independent approval, one-time apply and three-step audit trail.
+- GitHub Actions runs the fixture, migration, integration harness and legacy cutover in a separate disposable PostgreSQL database.
 
 ## RPC security boundary
 
@@ -134,4 +142,4 @@ Required:
 
 ## Safety boundary
 
-This is a design/acceptance artifact only. No SQL was applied, no Production settings or grants were changed, no module state was changed, no PR was merged, and no deployment occurred.
+This is a draft implementation and acceptance artifact only. It has not been run against Production. The disposable CI run is the only intended execution target. No Production SQL was applied, no Production settings or grants were changed, no module state was changed, no PR was merged, and no deployment occurred.
