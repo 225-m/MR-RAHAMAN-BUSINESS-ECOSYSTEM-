@@ -169,7 +169,7 @@ async function runRealBranchPreviewBrowser({ requester, approver, applier, unaut
     const applierCard = applierUi.page.locator(".item").filter({ hasText: "Real local JWT Browser integration test" });
     await applierCard.getByRole("button", { name: "Apply approved change" }).click();
     await applierUi.page.getByText("Approved module change Apply হয়েছে", { exact: false }).waitFor({ timeout: 15000 });
-    await applierUi.page.getByText("active", { exact: true }).waitFor({ timeout: 15000 });
+    await applierUi.page.locator("#moduleCatalog .branch").filter({ hasText: "JWT Browser Sales" }).getByText("active", { exact: true }).waitFor({ timeout: 15000 });
     console.log("PASS: real Branch Preview + separate apply JWT applies approved module change");
 
     const viewerUi = await openAs("viewer");
