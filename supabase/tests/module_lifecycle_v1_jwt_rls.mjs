@@ -93,6 +93,31 @@ async function main() {
   ], { encoding: "utf8", env: process.env });
   if (seed.status !== 0) throw new Error(`JWT fixture seed failed: ${seed.stderr || seed.stdout}`);
 
+  const requesterContext = await rpc("current_access_context_v1", {}, requester.token);
+  const requesterOrg = requesterContext.body?.organizations?.find(org => org.organization_id === ORG_ID);
+  if (!requesterOrg || !requesterOrg.permissions.includes("module.request") || !requesterOrg.permissions.includes("module.read")) {
+    throw new Error("Requester access context did not return only its database-backed permissions");
+  }
+  if (requesterContext.body?.is_platform_owner !== false) throw new Error("Organization requester was incorrectly classified as Platform Owner");
+
+  const approverContext = await rpc("current_access_context_v1", {}, approver.token);
+  const approverOrg = approverContext.body?.organizations?.find(org => org.organization_id === ORG_ID);
+  if (!approverOrg || !approverOrg.permissions.includes("approval.approve") || approverOrg.permissions.includes("module.manage")) {
+    throw new Error("Approver access context permission separation is incorrect");
+  }
+
+  const unauthorizedContext = await rpc("current_access_context_v1", {}, unauthorized.token);
+  const unauthorizedOrg = unauthorizedContext.body?.organizations?.find(org => org.organization_id === ORG_ID);
+  if (!unauthorizedOrg || unauthorizedOrg.permissions.length !== 0) {
+    throw new Error("Member without role grants received unexpected permissions");
+  }
+
+  const outsiderContext = await rpc("current_access_context_v1", {}, outsider.token);
+  if (outsiderContext.body?.organizations?.some(org => org.organization_id === ORG_ID)) {
+    throw new Error("Cross-organization access context leak");
+  }
+  console.log("PASS: current_access_context_v1 returns only caller memberships and database-derived permissions");
+
   const noToken = await rpc("module_request_change_v1", {
     p_organization_id: ORG_ID, p_module_key: "jwt_test_sales",
     p_request_type: "disable", p_reason: "Unauthenticated test"
