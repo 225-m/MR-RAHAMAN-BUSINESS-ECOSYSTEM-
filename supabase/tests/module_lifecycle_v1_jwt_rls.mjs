@@ -286,38 +286,38 @@ async function main() {
 
   await rpc("platform_owner_grant_v1", {
     p_target_user_id: requester.id,
-    p_reason: "Grant second verified Platform Owner"
+    p_reason: "Transfer single verified Platform Owner slot"
   }, platformOwner.token);
   const secondOwnerContext = await rpc("current_access_context_v1", {}, requester.token);
   if (secondOwnerContext.body?.is_platform_owner !== true) {
-    throw new Error("Newly granted Platform Owner was not recognized in access context");
+    throw new Error("Transferred Platform Owner was not recognized in access context");
   }
-  console.log("PASS: active Platform Owner can grant a verified second Owner");
+  const formerOwnerContext = await rpc("current_access_context_v1", {}, platformOwner.token);
+  if (formerOwnerContext.body?.is_platform_owner === true) {
+    throw new Error("Former Platform Owner retained access after handover");
+  }
+  console.log("PASS: active Platform Owner atomically transfers the single Owner slot to a verified user");
 
-  await rpc("platform_owner_revoke_v1", {
-    p_target_user_id: platformOwner.id,
-    p_reason: "Transfer responsibility to second Owner"
-  }, requester.token);
   await rpc("platform_owner_revoke_v1", {
     p_target_user_id: requester.id,
     p_reason: "Attempt to remove final active Owner"
   }, requester.token, "denied");
-  console.log("PASS: Owner can revoke another Owner; final active Owner self-revoke is blocked");
+  console.log("PASS: final active Owner cannot be revoked");
 
   const platformAudit = await rpc("platform_owner_audit_list_v1", { p_limit: 50 }, requester.token);
   if (!Array.isArray(platformAudit.body) || platformAudit.body.length !== 2 ||
       !platformAudit.body.some(row => row.action === "platform_owner.granted") ||
       !platformAudit.body.some(row => row.action === "platform_owner.revoked")) {
-    throw new Error("Platform Owner grant/revoke audit trail is incomplete: " + platformAudit.raw);
+    throw new Error("Platform Owner handover audit trail is incomplete: " + platformAudit.raw);
   }
   const directPlatformAudit = await jsonRequest(`${API_URL}/rest/v1/platform_audit_logs?select=id`, {
     headers: { apikey: ANON_KEY, Authorization: `Bearer ${requester.token}` }
   });
   if (directPlatformAudit.response.ok) throw new Error("Authenticated user can read platform_audit_logs directly");
-  console.log("PASS: grant/revoke events are audited and audit history is available only through Owner RPC");
+  console.log("PASS: paired handover events are audited and audit history is Owner-RPC-only");
 
   await rpc("platform_owner_audit_list_v1", { p_limit: 50 }, platformOwner.token, "denied");
-  console.log("PASS: revoked Platform Owner loses access to platform audit history");
+  console.log("PASS: former Platform Owner loses access to platform audit history");
 
   console.log("PASS: local GoTrue JWT + PostgREST + PostgreSQL RLS Module Lifecycle suite completed");
 }
