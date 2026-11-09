@@ -157,7 +157,7 @@ jobs:
           if (/!\s*u\.email_confirmed_at\s*\|\|\s*!\s*u\.phone_confirmed_at/.test(html)) {
             throw new Error('Branch Module must not require phone verification in email-only v1');
           }
-          for (const required of ['branch_list_v1', 'branch_create', 'branch_update', 'branch_set_status', 'branch_detail_v1', 'branch_upsert_profile', 'branch_add_contact', 'branch_set_operating_hours', 'branch_set_setting', 'branch_audit_list_v1']) {
+          for (const required of ['branch_list_v1', 'branch_create', 'branch_update', 'branch_set_status', 'branch_detail_v1', 'branch_upsert_profile', 'branch_add_contact', 'branch_set_operating_hours', 'branch_set_setting', 'branch_audit_list_v1', 'branch_assign_member_access', 'branch_revoke_member_access']) {
             if (!html.includes(required)) throw new Error('Branch RPC/UI integration missing: ' + required);
           }
           if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
