@@ -60,7 +60,7 @@ jobs:
       - name: Replay checked-in schema and run GoTrue JWT/RLS integration
         run: |
           supabase db reset --local
-          supabase status --env --output-format text > .env.local
+          supabase status -o env > .env.local
           set -a
           source .env.local
           set +a
