@@ -1,6 +1,7 @@
 -- MR RAHAMAN Business Ecosystem — First Platform Owner + Organization Owner Bootstrap v2
 -- DRAFT ONLY. Do not apply to Production.
--- Target: pojhrvmuamdejlutxpng. One-time allowlisted, verified Auth account.\n-- The allowlisted subject is configured only in the Edge Function environment, not in source.
+-- Target: pojhrvmuamdejlutxpng. One-time allowlisted, verified Auth account.
+-- The allowlisted subject is configured only in the Edge Function environment, not in source.
 -- This draft replaces v1 conceptually; v1 remains unsafe and must not be used.
 
 create or replace function public.bootstrap_first_platform_owner_v2(
@@ -15,12 +16,18 @@ declare
   v_user_id uuid := p_expected_user_id;
   v_org_id uuid;
   v_role_id uuid;
+  v_platform_role_id uuid;
   v_permission_count integer;
   v_core_module_count integer;
   v_email_confirmed boolean;
 begin
   if p_expected_user_id is null then
     raise exception 'An allowlisted expected user ID is required' using errcode = '22023';
+  end if;
+
+  if pg_catalog.to_regclass('public.platform_audit_logs') is null then
+    raise exception 'platform_audit_logs must be installed before first-owner bootstrap'
+      using errcode = '55000';
   end if;
 
   if coalesce(current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
@@ -125,7 +132,15 @@ begin
   insert into public.platform_admin_roles
     (user_id, role_key, granted_by, expires_at, revoked_at)
   values
-    (v_user_id, 'platform_owner', v_user_id, null, null);
+    (v_user_id, 'platform_owner', v_user_id, null, null)
+  returning id into v_platform_role_id;
+
+  insert into public.platform_audit_logs
+    (actor_user_id, target_user_id, action, role_key, reason, old_values, new_values)
+  values
+    (v_user_id, v_user_id, 'platform_owner.granted', 'platform_owner',
+     'Initial Platform Owner created by the verified one-time bootstrap.',
+     null, jsonb_build_object('platform_admin_role_id', v_platform_role_id, 'bootstrap_version', 2));
 
   insert into public.module_audit_logs
     (organization_id, actor_user_id, action, resource_type, resource_id, old_values, new_values)
@@ -167,7 +182,7 @@ grant execute on function public.bootstrap_first_platform_owner_v2(uuid)
 -- E. exactly 41 permissions and exactly six is_core modules must exist.
 -- F. platform_admin_roles row has platform_owner, expires_at NULL, revoked_at NULL.
 -- G. organization Owner gets all 41 current permissions; six actual core modules enabled.
--- H. audit row written in the same transaction; no branch/sample data created.
+-- H. module and platform audit rows written in the same transaction; no branch/sample data created.
 -- I. confirm RPC current_access_context_v1 reports platform_owner and organization access.
 --
 -- Rollback before first execution:
