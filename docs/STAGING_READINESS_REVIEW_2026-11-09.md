@@ -115,7 +115,7 @@ The Branch Preview source at branch-preview/index.html now includes an organizat
 - Apply controls are gated by module.read + module.manage and appear only for linked approved requests.
 - The UI calls only module_request_change_v1, module_approval_decide_v1, and module_apply_approved_change_v1.
 - The UI does not call branch_module_set_enabled and does not directly mutate lifecycle tables.
-- The source passed a local JavaScript parse check, duplicate-ID check, DOM-reference check, and static V1 permission/RPC assertions. GitHub Actions Run #191 passed both the local Supabase GoTrue JWT/RLS job and static validation, including the Owner guard PostgreSQL tests. The separate Playwright browser/mobile viewport test was added afterward and is pending in Run #197.
+- The source passed a local JavaScript parse check, duplicate-ID check, DOM-reference check, and static V1 permission/RPC assertions. GitHub Actions Run #191 passed both the local Supabase GoTrue JWT/RLS job and static validation, including the Owner guard PostgreSQL tests. Playwright Chromium Run #197 also passed: requester self-approval is hidden, a separate approver can approve, a separate apply actor can Apply, unauthorized UI controls stay hidden, and the 390×844 mobile-sized viewport has no horizontal overflow. This is mobile viewport emulation, not a real Android device test.
 
 Implementation notes: docs/BRANCH_PREVIEW_MODULE_LIFECYCLE_V1.md.
 
@@ -131,7 +131,7 @@ Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 
 ## Remaining work
 
-1. Verify the new Playwright browser/mobile viewport test in GitHub Actions Run #197; then run real JWT browser integration against the isolated Supabase stack.
+1. Verify the updated Owner permission-floor tests in the latest GitHub Actions run; then run real Android Chrome/device smoke tests when a device environment is available.
 2. Execute Browser smoke tests with real local GoTrue JWT sessions against the isolated stack; test Request, self-approval denial, independent approval, Apply, permission revocation, and audit visibility through the UI.
 3. Perform Android-sized viewport and real-device smoke tests when an Android browser/device test environment is available. Do not claim real-device testing from desktop viewport emulation.
 4. Implement and test Last Active Owner protections at the database layer.
