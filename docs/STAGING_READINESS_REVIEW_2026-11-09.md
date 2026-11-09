@@ -125,14 +125,14 @@ Read-only Production schema review confirmed that platform_admin_roles, app_role
 
 A separate draft, supabase/drafts/last_active_owner_guard_v1.sql, and disposable fixture/tests have been added on the feature branch. The draft protects the last active platform_owner and canonical organization role_key owner against revoke, expiry, demotion, suspension, deletion and role deactivation. Advisory transaction locks are used to serialize concurrent removal attempts.
 
-Known release blocker: the draft does not yet protect critical role_permissions mappings from being stripped out of the final Owner role. The canonical organization Owner role key also needs final confirmation. The Owner guard is therefore NOT complete and must not be applied to Production. The disposable PostgreSQL Owner guard suite passed in GitHub Actions Run #191. This validates the drafted trigger behavior in the fixture only; it does not resolve the critical role-permission-floor gap.
+The draft now defines a nine-permission governance floor for organization Owner roles and adds triggers to reject incomplete Owner assignment and removal of required grants from the final complete Owner role. Disposable tests now include those paths. GitHub Actions Run #191 passed the earlier Owner guard tests; the expanded permission-floor suite is running in the latest CI run and is not yet verified. The canonical organization Owner key (owner) still needs confirmation against the final role catalogue. Owner protection remains a draft and must not be applied to Production.
 
 Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 
 ## Remaining work
 
 1. Verify the updated Owner permission-floor tests in the latest GitHub Actions run; then run real Android Chrome/device smoke tests when a device environment is available.
-2. Execute Browser smoke tests with real local GoTrue JWT sessions against the isolated stack; test Request, self-approval denial, independent approval, Apply, permission revocation, and audit visibility through the UI.
+2. The Playwright UI smoke test uses a mocked Supabase client, while the separate local GoTrue JWT/PostgREST/RLS suite tests real database RPC authorization. A full browser-to-local-Supabase session integration is still outstanding.
 3. Perform Android-sized viewport and real-device smoke tests when an Android browser/device test environment is available. Do not claim real-device testing from desktop viewport emulation.
 4. Implement and test Last Active Owner protections at the database layer.
 5. Re-review legacy cutover SQL, rollback sequence, client coverage and grants. Keep Production unchanged until a separately approved release.
