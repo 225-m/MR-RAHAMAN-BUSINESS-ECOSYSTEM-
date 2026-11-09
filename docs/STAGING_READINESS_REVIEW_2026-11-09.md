@@ -96,7 +96,8 @@ The CLI initially warned that several service-exclusion labels were invalid; tho
 - [x] Reproducible checked-in schema baseline and Supabase CLI config.
 - [x] Local GoTrue-issued JWT + PostgREST/RLS integration suite passes in CI.
 - [x] Branch Preview source now uses the V1 Request → Independent Approval → Apply RPCs on the feature branch; deployment and runtime verification remain outstanding.
-- [ ] Real browser/Android smoke tests pass against an isolated test environment.
+- [x] Real Branch Preview browser UI against isolated local Supabase with GoTrue JWT sessions, including requester/approver/applier/viewer and 390×844 layout, passed in [Run #299](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42559010963).
+- [ ] Physical Android Chrome/device smoke test on a safe isolated preview URL.
 - [x] Legacy RPC cutover script passes in the disposable local database; Production rollback/cutover review remains outstanding.
 - [x] Last Active Owner guards, single-slot Platform Owner handover, paired immutable audit events, and least-privilege API grants pass disposable PostgreSQL + local GoTrue JWT tests (Run #285).
 - [ ] Explicit user authorization is obtained before any Production migration or deployment.
