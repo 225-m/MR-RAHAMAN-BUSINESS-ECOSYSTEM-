@@ -39,7 +39,7 @@ The 14 recovered migrations contain no organization Owner seed because Productio
 The new fixture and integration test cover:
 
 - Last Platform Owner revoke, expiry, demotion and delete blocking.
-- Normal revocation of one of multiple Platform Owners.
+- Platform Owner role inventory and single-owner uniqueness constraint.
 - Last organization Owner membership suspension, demotion and delete blocking.
 - Last Owner role deactivation blocking.\n- Incomplete Owner role assignment denial.\n- Removal of a required permission from the final complete Owner role blocked.\n\nVerification: [GitHub Actions Run #205](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42547283643).
 - Normal removal of a non-Owner member.
@@ -50,8 +50,8 @@ CI runs these tests in a separate disposable PostgreSQL database. Passing tests 
 
 The companion draft supabase/drafts/platform_owner_management_v1.sql adds:
 
-- platform_owner_grant_v1 — only an active Platform Owner can grant another verified Auth user.
-- platform_owner_revoke_v1 — only an active Platform Owner can revoke; the last-owner trigger blocks lockout.
+- platform_owner_grant_v1 — transfers the single active Platform Owner slot to another verified Auth user; writes paired revoke/grant audit events atomically.
+- platform_owner_revoke_v1 — direct revocation is blocked when it would remove the final active Owner; handover is the supported removal path.
 - platform_owner_audit_list_v1 — audit history is visible only to an active Platform Owner.
 - public.platform_audit_logs — append-only, with actor, target, action, reason, old/new values and timestamp.
 
