@@ -41,9 +41,9 @@ Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/425426
 - The 14 migration SQL files were recovered from the Production migration-history `statements` arrays and added to `supabase/migrations/` on the feature branch. A keyword scan found no password, secret, service-role key, JWT-secret or API-key assignments in those SQL statements.
 - `supabase/config.toml` now configures an isolated local Supabase stack with Auth enabled and email confirmations disabled only for local tests.
 - A new CI job starts local Supabase, replays the checked-in migrations, applies the Module Lifecycle draft, creates users through local GoTrue, and exercises RPCs through PostgREST using issued access tokens.
-- The local GoTrue JWT/RLS job now passes in GitHub Actions Run #156. It starts an isolated Supabase stack, replays all 14 migrations, creates users through GoTrue, obtains access tokens, and calls the Module Lifecycle RPCs through PostgREST. The first attempt failed only because an obsolete CLI status flag was used; this was corrected to `supabase status -o env`. The local Auth config also uses the current `auth.email.enabled` key.
+- The local GoTrue JWT/RLS job now passes in GitHub Actions Run #160. It starts an isolated Supabase stack, replays all 14 migrations, creates users through GoTrue, obtains access tokens, and calls the Module Lifecycle RPCs through PostgREST. The first attempt failed only because an obsolete CLI status flag was used; this was corrected to `supabase status -o env`. The local Auth config also uses the current `auth.email.enabled` key.
 
-Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42544161776
+Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42544295546
 
 The schema baseline now replays successfully under the local Supabase CLI. GoTrue-issued JWTs exercise the expected PostgREST/RLS controls in CI. The restored migration files are a development/test baseline and were not applied to Production.
 
@@ -74,7 +74,7 @@ The relevant target tables all have RLS enabled. Their inspected policies are sc
 
 ## Local Supabase JWT/RLS test results
 
-GitHub Actions Run #156 passed the isolated local Supabase integration job. It did not connect to Production and did not create a cloud staging project.
+GitHub Actions Run #160 passed the isolated local Supabase integration job. It did not connect to Production and did not create a cloud staging project.
 
 - Replayed all 14 checked-in migration files into local Supabase Postgres.
 - Started local Auth (GoTrue) and PostgREST; created disposable users through GoTrue and obtained access tokens.
@@ -87,7 +87,7 @@ GitHub Actions Run #156 passed the isolated local Supabase integration job. It d
 - Ran the legacy RPC cutover draft in the disposable local database; its assertions passed.
 - Local stack teardown completed successfully.
 
-Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42544161776
+Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42544295546
 
 The CLI initially warned that several service-exclusion labels were invalid; those exclusions were ignored, but the local stack, migration replay, integration tests and teardown all completed successfully. This is a CI efficiency cleanup, not a failed security assertion.
 
@@ -103,6 +103,6 @@ The CLI initially warned that several service-exclusion labels were invalid; tho
 
 ## Current status
 
-**Disposable PostgreSQL CI: PASS. Local Supabase schema replay: PASS. GoTrue JWT/PostgREST/RLS integration: PASS (Run #156). Local legacy cutover assertions: PASS. Cloud staging: NOT CREATED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
+**Disposable PostgreSQL CI: PASS. Local Supabase schema replay: PASS. GoTrue JWT/PostgREST/RLS integration: PASS (Run #160). Local legacy cutover assertions: PASS. Cloud staging: NOT CREATED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
 
 Next engineering task: migrate Branch Preview/client calls to the V1 RPC workflow, then run browser/Android smoke tests in the local/isolated environment. Production remains unchanged.
