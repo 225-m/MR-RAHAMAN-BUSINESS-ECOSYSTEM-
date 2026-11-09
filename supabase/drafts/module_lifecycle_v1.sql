@@ -345,6 +345,27 @@ begin
     raise exception 'Independent approval record is missing' using errcode = '55000';
   end if;
 
+  -- Approval is not a permanent capability token: revalidate the approver's
+  -- active membership, active role and live approval.approve grant at apply time.
+  if not exists (
+    select 1
+    from public.organization_members m
+    join public.app_roles r
+      on r.id = m.role_id
+     and r.organization_id = m.organization_id
+     and r.is_active = true
+    join public.role_permissions rp
+      on rp.role_id = r.id
+     and rp.organization_id = r.organization_id
+    join public.permissions p on p.id = rp.permission_id
+    where m.organization_id = p_organization_id
+      and m.user_id = v_approver_id
+      and m.member_status = 'active'
+      and p.permission_key = 'approval.approve'
+  ) then
+    raise exception 'Approver is no longer an active authorized member' using errcode = '42501';
+  end if;
+
   select pm.* into v_module
   from public.platform_modules pm
   where pm.id = v_change.module_id and pm.is_active = true
