@@ -24,6 +24,12 @@ select set_config('request.jwt.claim.role', 'authenticated', true);
 select set_config('request.jwt.claims',
   pg_catalog.jsonb_build_object('role','authenticated','sub', :'requester_id')::text, true);
 select set_config('request.jwt.claim.sub', :'requester_id', true);
+select set_config('test.org_id', :'org_id', true);
+select set_config('test.requester_id', :'requester_id', true);
+select set_config('test.approver_id', :'approver_id', true);
+select set_config('test.apply_id', :'apply_id', true);
+select set_config('test.approval_id', '', true);
+select set_config('test.change_id', '', true);
 
 -- T01: create exactly one request and capture both identifiers.
 select
@@ -38,11 +44,14 @@ from (
 \gset
 
 -- T02: requester cannot approve own request, even with approval.approve.
+select set_config('test.approval_id', :'approval_id', true);
+select set_config('test.change_id', :'change_id', true);
+
 do $test$
 begin
   begin
     perform public.module_approval_decide_v1(
-      :'org_id'::uuid, :'approval_id'::uuid, 'approved', 'self approval attempt'
+      current_setting('test.org_id')::uuid, current_setting('test.approval_id')::uuid, 'approved', 'self approval attempt'
     );
     raise exception 'T02 FAILED: requester self-approved';
   exception when sqlstate '42501' then
@@ -60,7 +69,7 @@ do $test$
 begin
   begin
     perform public.module_approval_decide_v1(
-      :'org_id'::uuid, :'approval_id'::uuid, 'approved', 'unauthorized attempt'
+      current_setting('test.org_id')::uuid, current_setting('test.approval_id')::uuid, 'approved', 'unauthorized attempt'
     );
     raise exception 'T03 FAILED: unauthorized user approved';
   exception when sqlstate '42501' then
@@ -78,7 +87,7 @@ do $test$
 begin
   begin
     perform public.module_apply_approved_change_v1(
-      :'org_id'::uuid, :'change_id'::uuid
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
     );
     raise exception 'T04 FAILED: pending request was applied';
   exception when sqlstate '55000' then
@@ -119,7 +128,8 @@ begin
 end;
 $test$;
 
--- T08: confirm completed request and audit chain are present.
+-- T08: confirm completed request and audit chain are present as the DB test owner.
+reset role;
 do $test$
 declare
   v_status text;
@@ -128,7 +138,7 @@ declare
 begin
   select status into v_status
   from public.module_change_requests
-  where id = :'change_id'::uuid and organization_id = :'org_id'::uuid;
+  where id = current_setting('test.change_id')::uuid and organization_id = current_setting('test.org_id')::uuid;
 
   if v_status <> 'completed' then
     raise exception 'T08 FAILED: expected completed status, got %', v_status;
@@ -136,10 +146,10 @@ begin
 
   select count(*) into v_action_count
   from public.approval_actions
-  where approval_request_id = :'approval_id'::uuid
-    and organization_id = :'org_id'::uuid
+  where approval_request_id = current_setting('test.approval_id')::uuid
+    and organization_id = current_setting('test.org_id')::uuid
     and decision = 'approved'
-    and actor_user_id = :'approver_id'::uuid;
+    and actor_user_id = current_setting('test.approver_id')::uuid;
 
   if v_action_count <> 1 then
     raise exception 'T08 FAILED: independent approval action missing or duplicated';
