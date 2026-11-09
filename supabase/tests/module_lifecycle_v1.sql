@@ -272,7 +272,74 @@ begin
 end;
 $test$;
 
--- T09: rejected module change cannot be applied.
+-- T09: mandatory dependency blocks enable; applying succeeds only after dependency activation.
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'requester_id')::text, true);
+select set_config('request.jwt.claim.sub', :'requester_id', true);
+select
+  (r.result->>'module_change_request_id')::uuid as dependency_change_id,
+  (r.result->>'approval_request_id')::uuid as dependency_approval_id
+from (
+  select public.module_request_change_v1(
+    :'org_id'::uuid, :'module_key', 'enable',
+    'Enable request requiring dependency'
+  ) as result
+) r
+\gset
+
+select set_config('test.change_id', :'dependency_change_id', true);
+select set_config('test.approval_id', :'dependency_approval_id', true);
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'approver_id')::text, true);
+select set_config('request.jwt.claim.sub', :'approver_id', true);
+select public.module_approval_decide_v1(
+  :'org_id'::uuid, :'dependency_approval_id'::uuid, 'approved', 'dependency test approval'
+);
+
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T09 FAILED: module enabled while mandatory dependency was inactive';
+  exception when sqlstate '55000' then
+    null;
+  end;
+end;
+$test$;
+
+reset role;
+if (select count(*) from public.organization_modules
+    where organization_id = :'org_id'::uuid
+      and module_id = '00000000-0000-0000-0000-000000000301'::uuid
+      and status = 'disabled') <> 1 then
+  \echo 'T09 FAILED: blocked dependency attempt changed module state'
+  \quit 1
+end if;
+
+insert into public.organization_modules(
+  id, organization_id, module_id, status, installed_version,
+  configuration, enabled_at, enabled_by, updated_at
+) values (
+  '00000000-0000-0000-0000-000000000312'::uuid,
+  :'org_id'::uuid,
+  '00000000-0000-0000-0000-000000000302'::uuid,
+  'active', '1.0.0', '{}'::jsonb, pg_catalog.now(), :'apply_id'::uuid, pg_catalog.now()
+);
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+select public.module_apply_approved_change_v1(
+  :'org_id'::uuid, :'dependency_change_id'::uuid
+);
+
+-- T10: rejected module change cannot be applied.
 select set_config('request.jwt.claims',
   pg_catalog.jsonb_build_object('role','authenticated','sub', :'requester_id')::text, true);
 select set_config('request.jwt.claim.sub', :'requester_id', true);
@@ -281,8 +348,8 @@ select
   (r.result->>'approval_request_id')::uuid as rejected_approval_id
 from (
   select public.module_request_change_v1(
-    :'org_id'::uuid, :'module_key', 'enable',
-    'Request enable for rejection test'
+    :'org_id'::uuid, :'module_key', 'disable',
+    'Request disable for rejection test'
   ) as result
 ) r
 \gset
@@ -305,14 +372,14 @@ begin
     perform public.module_apply_approved_change_v1(
       current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
     );
-    raise exception 'T09 FAILED: rejected module change was applied';
+    raise exception 'T10 FAILED: rejected module change was applied';
   exception when sqlstate '55000' then
     null;
   end;
 end;
 $test$;
 
--- T10: expired pending approval cannot be decided.
+-- T11: expired pending approval cannot be decided.
 select set_config('request.jwt.claims',
   pg_catalog.jsonb_build_object('role','authenticated','sub', :'requester_id')::text, true);
 select set_config('request.jwt.claim.sub', :'requester_id', true);
@@ -321,8 +388,8 @@ select
   (r.result->>'approval_request_id')::uuid as expired_approval_id
 from (
   select public.module_request_change_v1(
-    :'org_id'::uuid, :'module_key', 'enable',
-    'Request enable for expiry test'
+    :'org_id'::uuid, :'module_key', 'disable',
+    'Request disable for expiry test'
   ) as result
 ) r
 \gset
@@ -333,6 +400,7 @@ set expires_at = pg_catalog.now() - interval '1 second'
 where id = :'expired_approval_id'::uuid
   and organization_id = :'org_id'::uuid;
 set local role authenticated;
+select set_config('test.approval_id', :'expired_approval_id', true);
 select set_config('request.jwt.claims',
   pg_catalog.jsonb_build_object('role','authenticated','sub', :'approver_id')::text, true);
 select set_config('request.jwt.claim.sub', :'approver_id', true);
@@ -341,7 +409,7 @@ begin
   begin
     perform public.module_approval_decide_v1(
       current_setting('test.org_id')::uuid,
-      :'expired_approval_id'::uuid,
+      current_setting('test.approval_id')::uuid,
       'approved',
       'expired approval test'
     );
