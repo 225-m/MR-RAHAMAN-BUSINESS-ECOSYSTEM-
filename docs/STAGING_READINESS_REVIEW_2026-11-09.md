@@ -95,7 +95,7 @@ The CLI initially warned that several service-exclusion labels were invalid; tho
 
 - [x] Reproducible checked-in schema baseline and Supabase CLI config.
 - [x] Local GoTrue-issued JWT + PostgREST/RLS integration suite passes in CI.
-- [ ] Actual Branch Preview/client uses the V1 Request → Independent Approval → Apply RPCs.
+- [x] Branch Preview source now uses the V1 Request → Independent Approval → Apply RPCs on the feature branch; deployment and runtime verification remain outstanding.
 - [ ] Real browser/Android smoke tests pass against an isolated test environment.
 - [x] Legacy RPC cutover script passes in the disposable local database; Production rollback/cutover review remains outstanding.
 - [ ] Owner lockout safeguards and audit coverage are tested.
@@ -105,4 +105,28 @@ The CLI initially warned that several service-exclusion labels were invalid; tho
 
 **Disposable PostgreSQL CI: PASS. Local Supabase schema replay: PASS. GoTrue JWT/PostgREST/RLS integration: PASS (Run #160). Local legacy cutover assertions: PASS. Cloud staging: NOT CREATED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
 
-Next engineering task: migrate Branch Preview/client calls to the V1 RPC workflow, then run browser/Android smoke tests in the local/isolated environment. Production remains unchanged.
+
+## Branch Preview Module Lifecycle UI integration — feature branch
+
+The Branch Preview source at branch-preview/index.html now includes an organization-scoped Module Lifecycle panel.
+
+- Request controls are gated by module.read + module.request.
+- Independent approval controls are gated by approval.read + approval.approve, and the UI hides self-approval.
+- Apply controls are gated by module.read + module.manage and appear only for linked approved requests.
+- The UI calls only module_request_change_v1, module_approval_decide_v1, and module_apply_approved_change_v1.
+- The UI does not call branch_module_set_enabled and does not directly mutate lifecycle tables.
+- The source passed a local JavaScript parse check, duplicate-ID check, DOM-reference check, and static V1 permission/RPC assertions.
+- CI validation was extended to enforce these source contracts. A GitHub Actions result for the new commits has not yet been independently verified.
+
+Implementation notes: docs/BRANCH_PREVIEW_MODULE_LIFECYCLE_V1.md.
+
+## Remaining work
+
+1. Run and verify CI after the Branch Preview changes.
+2. Execute Browser smoke tests with real local GoTrue JWT sessions against the isolated stack; test Request, self-approval denial, independent approval, Apply, permission revocation, and audit visibility through the UI.
+3. Perform Android-sized viewport and real-device smoke tests when an Android browser/device test environment is available. Do not claim real-device testing from desktop viewport emulation.
+4. Implement and test Last Active Owner protections at the database layer.
+5. Re-review legacy cutover SQL, rollback sequence, client coverage and grants. Keep Production unchanged until a separately approved release.
+6. Production cutover/deployment remains unauthorized and unapplied.
+
+Production remains unchanged.
