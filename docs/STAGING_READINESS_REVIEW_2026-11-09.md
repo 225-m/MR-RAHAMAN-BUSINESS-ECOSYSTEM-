@@ -10,9 +10,9 @@ Scope: read-only readiness review. No Production SQL, settings, users, or data w
 
 **Cloud staging is not ready. Real JWT/RLS testing must not be pointed at Production.**
 
-The Module Lifecycle disposable PostgreSQL CI passed in GitHub Actions Run #130, but that test is not a Supabase Auth/PostgREST integration test. The repository currently has no checked-in `supabase/config.toml` and no `supabase/migrations/` baseline. The connected Supabase account shows no dedicated staging project; the MR RAHAMAN project has only its default `main` branch. The other listed Supabase project is unrelated and must not be used for this project.
+The Module Lifecycle disposable PostgreSQL CI passed in GitHub Actions Run #130, but that test is not a Supabase Auth/PostgREST integration test. The repository initially lacked a reproducible migration baseline. I recovered the 14 recorded SQL migration statements read-only from Production's `supabase_migrations.schema_migrations` history and committed them under `supabase/migrations/`; a local-only `supabase/config.toml`, JWT seed fixture, GoTrue/PostgREST test script, and CI job are now added on the feature branch. The connected Supabase account still shows no dedicated cloud staging project; the MR RAHAMAN project has only its default `main` branch. The other listed Supabase project is unrelated and must not be used for this project.
 
-To respect the project's free-tier/no-cost requirement, do not create a Supabase cloud project or development branch as part of this work. Prepare a local Supabase CLI stack in CI instead, after a reproducible schema baseline is available.
+To respect the project's free-tier/no-cost requirement, do not create a Supabase cloud project or development branch as part of this work. Use the local Supabase CLI stack in CI instead; the first real GoTrue JWT/PostgREST/RLS run is now wired into the workflow and must pass before staging readiness can be upgraded.
 
 ## Checks completed
 
@@ -38,12 +38,12 @@ Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/425426
 ### Repository reproducibility gap
 
 - `supabase/drafts/` and `supabase/tests/` exist.
-- `supabase/config.toml` is absent.
-- `supabase/migrations/` is absent from the active development branch.
-- Production has 14 recorded migrations, but the full migration source chain is not checked into this repository.
-- The current CI uses a hand-built disposable PostgreSQL fixture. It does not start Supabase Auth (GoTrue), PostgREST, or issue a GoTrue access token.
+- The 14 migration SQL files were recovered from the Production migration-history `statements` arrays and added to `supabase/migrations/` on the feature branch. A keyword scan found no password, secret, service-role key, JWT-secret or API-key assignments in those SQL statements.
+- `supabase/config.toml` now configures an isolated local Supabase stack with Auth enabled and email confirmations disabled only for local tests.
+- A new CI job starts local Supabase, replays the checked-in migrations, applies the Module Lifecycle draft, creates users through local GoTrue, and exercises RPCs through PostgREST using issued access tokens.
+- The local GoTrue JWT/RLS job has been added but its first CI result is still pending. Until it passes, the disposable PostgreSQL suite remains the only confirmed test.
 
-This is the main blocker for a trustworthy local JWT/RLS integration test. Do not create an incomplete baseline by copying only the Module Lifecycle fixture: it would not reproduce the real policies, helper functions, grants, triggers, Auth schema, and migration order.
+The schema baseline blocker is addressed by restoring the recorded migration chain. The next blocker is validating that this chain replays cleanly under the local Supabase CLI and that GoTrue-issued JWTs exercise the expected PostgREST/RLS behavior. Do not treat the restored files as a Production migration or deploy them; they are a development/test baseline only.
 
 ### Production schema parity — read-only
 
@@ -96,6 +96,6 @@ After restoring a reproducible schema baseline, add a separate CI job that start
 
 ## Current status
 
-**CI fixture tests: PASS. Cloud staging readiness: BLOCKED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
+**Disposable PostgreSQL CI: PASS. Local Supabase GoTrue JWT/RLS CI: ADDED, FIRST RUN PENDING. Cloud staging: NOT CREATED. Production cutover: NOT AUTHORIZED / NOT APPLIED.**
 
-Next engineering task: reconstruct and review the complete, reproducible Supabase schema baseline from the existing migration history without changing Production, then add the local Supabase Auth/JWT/RLS CI job.
+Next engineering task: validate the new local Supabase CI run, correct any migration/config/test incompatibilities, and only then report real JWT/RLS test results.
