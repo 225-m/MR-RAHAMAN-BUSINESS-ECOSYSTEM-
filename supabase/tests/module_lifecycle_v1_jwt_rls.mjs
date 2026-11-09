@@ -118,6 +118,9 @@ async function main() {
   }
   console.log("PASS: current_access_context_v1 returns only caller memberships and database-derived permissions");
 
+  const noContext = await rpc("current_access_context_v1", {}, null, "denied");
+  console.log(`PASS: unauthenticated current access context denied (${noContext.status})`);
+
   const noToken = await rpc("module_request_change_v1", {
     p_organization_id: ORG_ID, p_module_key: "jwt_test_sales",
     p_request_type: "disable", p_reason: "Unauthenticated test"
