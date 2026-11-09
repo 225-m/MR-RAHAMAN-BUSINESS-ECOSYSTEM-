@@ -337,7 +337,7 @@ jobs:
           for (const required of ['OWNER_BOOTSTRAP_ALLOWED_USER_ID', 'OWNER_BOOTSTRAP_ALLOWED_ORIGIN', 'getUser(token)', 'email_confirmed_at', 'bootstrap_first_platform_owner_v2']) {
             if (!edge.includes(required)) throw new Error('Owner bootstrap Edge Function guard missing: ' + required);
           }
-          for (const required of ["request.jwt.claim.role", 'service_role required', 'p_expected_user_id', '41', 'core_module_count', 'pg_advisory_xact_lock', 'INITIAL_PLATFORM_OWNER_BOOTSTRAP_COMPLETED']) {
+          for (const required of ["request.jwt.claim.role", 'service_role required', 'p_expected_user_id', '41', 'core_module_count', 'pg_advisory_xact_lock', 'INITIAL_PLATFORM_OWNER_BOOTSTRAP_COMPLETED', 'platform_audit_logs', 'platform_owner.granted']) {
             if (!v2.includes(required)) throw new Error('Owner bootstrap SQL guard missing: ' + required);
           }
           if (/create\s+or\s+replace\s+function/i.test(v1)) throw new Error('Retired Owner bootstrap v1 must remain non-executable');
