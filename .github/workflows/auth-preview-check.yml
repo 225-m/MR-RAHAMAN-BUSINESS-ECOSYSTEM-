@@ -171,6 +171,13 @@ jobs:
             throw new Error('Server secret detected in Branch browser source');
           }
 
+          const landing = fs.readFileSync('index.html', 'utf8');
+          if (!landing.includes('assets/brand/mr-rahaman-business-ecosystem.svg') ||
+              !landing.includes('href="auth-preview/"') ||
+              !landing.includes('Development Preview')) {
+            throw new Error('Landing page must use the canonical logo, link to Authentication Preview, and disclose preview status');
+          }
+
           const location = JSON.parse(fs.readFileSync('branch-preview/data/bangladesh-admin-hierarchy.json', 'utf8'));
           const divisions = location.data || [];
           const districts = divisions.reduce((n, item) => n + (item.district || []).length, 0);
