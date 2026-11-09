@@ -125,7 +125,7 @@ Read-only Production schema review confirmed that platform_admin_roles, app_role
 
 A separate draft, supabase/drafts/last_active_owner_guard_v1.sql, and disposable fixture/tests have been added on the feature branch. The draft protects the last active platform_owner and canonical organization role_key owner against revoke, expiry, demotion, suspension, deletion and role deactivation. Advisory transaction locks are used to serialize concurrent removal attempts.
 
-The draft now defines a nine-permission governance floor for organization Owner roles and adds triggers to reject incomplete Owner assignment and removal of required grants from the final complete Owner role. Disposable tests now include those paths. GitHub Actions Run #191 passed the earlier Owner guard tests; the expanded permission-floor suite is running in the latest CI run and is not yet verified. The canonical organization Owner key (owner) still needs confirmation against the final role catalogue. Owner protection remains a draft and must not be applied to Production.
+The draft now defines a nine-permission governance floor for organization Owner roles and adds triggers to reject incomplete Owner assignment and removal of required grants from the final complete Owner role. Disposable tests now include those paths. GitHub Actions Run #205 passed the expanded disposable PostgreSQL Owner permission-floor suite, including incomplete Owner assignment denial and blocking removal of a required permission from the final complete Owner role. The canonical organization Owner key (owner) still needs confirmation against the final role catalogue. Owner protection remains a draft and must not be applied to Production.
 
 Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 
