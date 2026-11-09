@@ -26,7 +26,16 @@ $function$;
 
 create table public.organizations (
   id uuid primary key,
+  name text not null default 'Fixture Organization',
   status text not null
+);
+
+create table public.platform_admin_roles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id),
+  role_key text not null,
+  expires_at timestamptz,
+  revoked_at timestamptz
 );
 
 create table public.permissions (
