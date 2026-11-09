@@ -459,22 +459,20 @@ begin
 end;
 $function$;
 
--- Private implementations are callable only through the reviewed public wrappers.
-revoke all on function private.module_request_change_v1(uuid,text,text,text) from public, anon, authenticated;
-revoke all on function private.module_approval_decide_v1(uuid,uuid,text,text) from public, anon, authenticated;
-revoke all on function private.module_apply_approved_change_v1(uuid,uuid) from public, anon, authenticated;
-
-grant usage on schema private to authenticated;
-grant execute on function private.module_request_change_v1(uuid,text,text,text) to authenticated;
-grant execute on function private.module_approval_decide_v1(uuid,uuid,text,text) to authenticated;
-grant execute on function private.module_apply_approved_change_v1(uuid,uuid) to authenticated;
+-- Private implementations are not executable by API roles directly.
+-- Public wrappers are the only authenticated entry points. They are SECURITY DEFINER
+-- only to cross the private-function privilege boundary; every implementation
+-- independently validates auth.uid(), live membership and the required permission.
+revoke all on function private.module_request_change_v1(uuid,text,text,text) from public, anon, authenticated, service_role;
+revoke all on function private.module_approval_decide_v1(uuid,uuid,text,text) from public, anon, authenticated, service_role;
+revoke all on function private.module_apply_approved_change_v1(uuid,uuid) from public, anon, authenticated, service_role;
 
 create or replace function public.module_request_change_v1(
   p_organization_id uuid, p_module_key text, p_request_type text, p_reason text
 )
 returns jsonb
 language sql
-security invoker
+security definer
 set search_path = ''
 as $function$
   select private.module_request_change_v1(p_organization_id, p_module_key, p_request_type, p_reason);
@@ -485,7 +483,7 @@ create or replace function public.module_approval_decide_v1(
 )
 returns uuid
 language sql
-security invoker
+security definer
 set search_path = ''
 as $function$
   select private.module_approval_decide_v1(p_organization_id, p_approval_request_id, p_decision, p_comment);
@@ -496,15 +494,15 @@ create or replace function public.module_apply_approved_change_v1(
 )
 returns uuid
 language sql
-security invoker
+security definer
 set search_path = ''
 as $function$
   select private.module_apply_approved_change_v1(p_organization_id, p_module_change_request_id);
 $function$;
 
-revoke all on function public.module_request_change_v1(uuid,text,text,text) from public, anon, authenticated;
-revoke all on function public.module_approval_decide_v1(uuid,uuid,text,text) from public, anon, authenticated;
-revoke all on function public.module_apply_approved_change_v1(uuid,uuid) from public, anon, authenticated;
+revoke all on function public.module_request_change_v1(uuid,text,text,text) from public, anon, authenticated, service_role;
+revoke all on function public.module_approval_decide_v1(uuid,uuid,text,text) from public, anon, authenticated, service_role;
+revoke all on function public.module_apply_approved_change_v1(uuid,uuid) from public, anon, authenticated, service_role;
 
 grant execute on function public.module_request_change_v1(uuid,text,text,text) to authenticated;
 grant execute on function public.module_approval_decide_v1(uuid,uuid,text,text) to authenticated;
