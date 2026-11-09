@@ -1,4 +1,9 @@
 import { spawnSync } from "node:child_process";
+import http from "node:http";
+import fs from "node:fs";
+import path from "node:path";
+import { createRequire } from "node:module";
+import { chromium } from "playwright";
 
 const API_URL = process.env.API_URL ?? process.env.SUPABASE_URL;
 const ANON_KEY = process.env.ANON_KEY ?? process.env.PUBLISHABLE_KEY ?? process.env.SUPABASE_ANON_KEY;
@@ -39,7 +44,7 @@ async function createUser(label) {
   if (!login.response.ok || !login.body?.access_token) {
     throw new Error(`GoTrue password sign-in failed for ${label}: ${login.raw}`);
   }
-  return { id: userId, token: login.body.access_token };
+  return { id: userId, token: login.body.access_token, refreshToken: login.body.refresh_token, email };
 }
 
 async function rpc(name, args, token, expected = "success") {
@@ -74,6 +79,116 @@ async function restGet(path, token) {
   });
   if (!response.ok) throw new Error(`REST GET failed ${response.status}: ${raw}`);
   return body;
+}
+
+async function runRealBranchPreviewBrowser({ requester, approver, applier }) {
+  const require = createRequire(import.meta.url);
+  const supabaseEntry = require.resolve("@supabase/supabase-js");
+  const sdkPath = path.resolve(path.dirname(supabaseEntry), "../umd/supabase.js");
+  if (!fs.existsSync(sdkPath)) throw new Error("Supabase browser SDK UMD bundle was not found: " + sdkPath);
+  const htmlPath = path.resolve("branch-preview/index.html");
+  const locationPath = path.resolve("branch-preview/data/bangladesh-admin-hierarchy.json");
+  let html = fs.readFileSync(htmlPath, "utf8")
+    .replace('const SUPABASE_URL="https://pojhrvmuamdejlutxpng.supabase.co";', 'const SUPABASE_URL="http://127.0.0.1:54321";')
+    .replace('const SUPABASE_PUBLISHABLE_KEY="sb_publishable_T1HsW9dErikWZyt0jHammA_TUgg4PTT";', `const SUPABASE_PUBLISHABLE_KEY="${ANON_KEY}";`);
+  if (html.includes("https://pojhrvmuamdejlutxpng.supabase.co")) {
+    throw new Error("Branch Preview local Supabase URL override did not apply");
+  }
+
+  const server = http.createServer((req, res) => {
+    const url = new URL(req.url, "http://127.0.0.1:4174");
+    if (url.pathname === "/" || url.pathname === "/index.html") {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
+      res.end(html);
+      return;
+    }
+    if (url.pathname === "/data/bangladesh-admin-hierarchy.json") {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(fs.readFileSync(locationPath));
+      return;
+    }
+    res.writeHead(404); res.end("not found");
+  });
+
+  const browser = await chromium.launch({ headless: true });
+  const contexts = [];
+  try {
+    await new Promise(resolve => server.listen(4174, "127.0.0.1", resolve));
+
+    async function openAs(actor) {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      contexts.push(context);
+      const page = await context.newPage();
+      page.on("dialog", async dialog => {
+        if (dialog.type() === "prompt") await dialog.accept("Real local JWT Browser integration test");
+        else await dialog.accept();
+      });
+      await page.route("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0", route =>
+        route.fulfill({ path: sdkPath, contentType: "application/javascript" })
+      );
+      const account = actor === "requester" ? requester : actor === "approver" ? approver : applier;
+      const session = {
+        access_token: account.token,
+        refresh_token: account.refreshToken,
+        token_type: "bearer",
+        expires_in: 3600,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+        user: { id: account.id, email: account.email, email_confirmed_at: new Date().toISOString() }
+      };
+      await page.addInitScript(value => {
+        localStorage.setItem("sb-127-auth-token", JSON.stringify(value));
+      }, session);
+      await page.goto("http://127.0.0.1:4174/");
+      await page.locator("#moduleLifecycle").waitFor({ state: "visible", timeout: 20000 });
+      await page.getByText("JWT Browser Sales", { exact: true }).waitFor({ timeout: 20000 });
+      return { context, page };
+    }
+
+    const requesterUi = await openAs("requester");
+    await requesterUi.page.locator('[data-module-request="jwt_browser_sales"]').click();
+    await requesterUi.page.getByText("Request জমা হয়েছে", { exact: false }).waitFor({ timeout: 15000 });
+    const requesterCard = requesterUi.page.locator(".item").filter({ hasText: "Real local JWT Browser integration test" });
+    await requesterCard.waitFor();
+    if (await requesterCard.locator("[data-module-decision]").count() !== 0) {
+      throw new Error("Real requester UI exposed self-approval controls");
+    }
+    console.log("PASS: real Branch Preview + GoTrue requester JWT submits a lifecycle request and cannot self-approve");
+
+    const approverUi = await openAs("approver");
+    const approverCard = approverUi.page.locator(".item").filter({ hasText: "Real local JWT Browser integration test" });
+    await approverCard.getByRole("button", { name: "Approve" }).click();
+    await approverUi.page.getByText("Request independently approved হয়েছে", { exact: false }).waitFor({ timeout: 15000 });
+    console.log("PASS: real Branch Preview + independent approver JWT approves request");
+
+    const applierUi = await openAs("applier");
+    const applierCard = applierUi.page.locator(".item").filter({ hasText: "Real local JWT Browser integration test" });
+    await applierCard.getByRole("button", { name: "Apply approved change" }).click();
+    await applierUi.page.getByText("Approved module change Apply হয়েছে", { exact: false }).waitFor({ timeout: 15000 });
+    await applierUi.page.getByText("active", { exact: true }).waitFor({ timeout: 15000 });
+    console.log("PASS: real Branch Preview + separate apply JWT applies approved module change");
+
+    const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    contexts.push(mobileContext);
+    const mobilePage = await mobileContext.newPage();
+    await mobilePage.route("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0", route =>
+      route.fulfill({ path: sdkPath, contentType: "application/javascript" })
+    );
+    const mobileSession = {
+      access_token: requester.token, refresh_token: requester.refreshToken, token_type: "bearer",
+      expires_in: 3600, expires_at: Math.floor(Date.now() / 1000) + 3600,
+      user: { id: requester.id, email: requester.email, email_confirmed_at: new Date().toISOString() }
+    };
+    await mobilePage.addInitScript(value => localStorage.setItem("sb-127-auth-token", JSON.stringify(value)), mobileSession);
+    await mobilePage.goto("http://127.0.0.1:4174/");
+    await mobilePage.locator("#moduleLifecycle").waitFor({ state: "visible", timeout: 20000 });
+    const layout = await mobilePage.evaluate(() => ({ width: innerWidth, scrollWidth: document.documentElement.scrollWidth }));
+    if (layout.scrollWidth > layout.width + 1) throw new Error("Real local JWT mobile layout overflow: " + JSON.stringify(layout));
+    console.log("PASS: real local JWT Branch Preview renders at 390x844 without horizontal overflow");
+  } finally {
+    for (const context of contexts) await context.close();
+    await browser.close();
+    await new Promise(resolve => server.close(resolve));
+  }
 }
 
 async function main() {
@@ -319,7 +434,9 @@ async function main() {
   await rpc("platform_owner_audit_list_v1", { p_limit: 50 }, platformOwner.token, "denied");
   console.log("PASS: former Platform Owner loses access to platform audit history");
 
-  console.log("PASS: local GoTrue JWT + PostgREST + PostgreSQL RLS Module Lifecycle suite completed");
+  await runRealBranchPreviewBrowser({ requester, approver, applier });
+
+  console.log("PASS: local GoTrue JWT + PostgREST + real Branch Preview browser + PostgreSQL RLS suite completed");
 }
 
 main().catch(error => {
