@@ -65,6 +65,7 @@ jobs:
           source .env.local
           set +a
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/current_access_context_v1.sql
           node supabase/tests/module_lifecycle_v1_jwt_rls.mjs
           psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_cutover.sql
       - name: Stop isolated local Supabase services
@@ -129,6 +130,7 @@ jobs:
           createdb module_lifecycle_test
           psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/module_lifecycle_v1_schema.sql
           psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1.sql
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/current_access_context_v1.sql
           psql -d module_lifecycle_test -v ON_ERROR_STOP=1 \
             -v org_id='00000000-0000-0000-0000-000000000001' \
             -v requester_id='00000000-0000-0000-0000-000000000101' \
