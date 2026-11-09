@@ -32,7 +32,7 @@ An active organization Owner role must have all of the following governance perm
 
 The draft rejects assigning an active member to an incomplete Owner role, rejects disabling/renaming the last complete Owner role, and blocks removal or replacement of a required permission mapping from the last active complete Owner role. The trigger re-checks the permission floor under the same organization-scoped advisory lock used by Owner membership changes.
 
-The canonical organization Owner key is set to owner in this draft and must still be confirmed against the final role catalogue before Production use. The guard is a draft until the latest permission-floor tests pass and the role key is reconciled.
+The canonical organization Owner key is set to owner in this draft and must still be confirmed against the final role catalogue before Production use. The expanded disposable PostgreSQL permission-floor suite passed in GitHub Actions Run #205 (static-auth-check). The draft remains unapplied to Production.
 
 ## Disposable tests
 
@@ -41,7 +41,7 @@ The new fixture and integration test cover:
 - Last Platform Owner revoke, expiry, demotion and delete blocking.
 - Normal revocation of one of multiple Platform Owners.
 - Last organization Owner membership suspension, demotion and delete blocking.
-- Last Owner role deactivation blocking.\n- Incomplete Owner role assignment denial.\n- Removal of a required permission from the final complete Owner role blocked.
+- Last Owner role deactivation blocking.\n- Incomplete Owner role assignment denial.\n- Removal of a required permission from the final complete Owner role blocked.\n\nVerification: [GitHub Actions Run #205](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42547283643).
 - Normal removal of a non-Owner member.
 
 CI runs these tests in a separate disposable PostgreSQL database. Passing tests do not deploy the draft or modify Production.
