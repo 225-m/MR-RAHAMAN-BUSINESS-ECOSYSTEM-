@@ -72,12 +72,22 @@ begin
      or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','SELECT')
      or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','INSERT')
      or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','UPDATE')
-     or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','DELETE') then
+     or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','DELETE')
+     or pg_catalog.has_table_privilege('service_role','public.platform_audit_logs','SELECT')
+     or pg_catalog.has_table_privilege('service_role','public.platform_audit_logs','INSERT')
+     or pg_catalog.has_table_privilege('service_role','public.platform_audit_logs','UPDATE')
+     or pg_catalog.has_table_privilege('service_role','public.platform_audit_logs','DELETE') then
     raise exception 'Direct Platform Owner assignment/audit table access is granted';
   end if;
 
   if (select count(*) from pg_catalog.pg_trigger t
-      where t.tgname in (
+      where t.tgrelid in (
+        'public.platform_admin_roles'::regclass,
+        'public.app_roles'::regclass,
+        'public.organization_members'::regclass,
+        'public.role_permissions'::regclass
+      )
+      and t.tgname in (
         'platform_admin_roles_last_owner_guard',
         'app_roles_last_owner_guard',
         'organization_members_last_owner_guard',
