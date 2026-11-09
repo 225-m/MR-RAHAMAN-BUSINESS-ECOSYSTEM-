@@ -7,6 +7,7 @@
 begin;
 
 -- Platform Owner assignments are only mutated through audited SECURITY DEFINER RPCs.
+alter table public.platform_admin_roles enable row level security;
 revoke all on table public.platform_admin_roles from public, anon, authenticated, service_role;
 
 create table if not exists public.platform_audit_logs (
