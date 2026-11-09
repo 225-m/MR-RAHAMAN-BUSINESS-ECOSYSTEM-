@@ -131,6 +131,7 @@ Required:
 - Approval cannot be bypassed by calling old Branch RPC, direct table DML, a guessed RPC, or a public wrapper.
 - Approved request cannot be applied twice.
 - Rejected/pending/expired request cannot apply.
+- Automated tests now cover rejection, expired pending approval and mandatory dependency blocking, including retry after dependency activation.
 - Revoking or suspending the approver after approval blocks apply until a currently authorized approval decision is obtained again.
 - Enable fails if mandatory dependency is missing/inactive.
 - Disable fails if any active module depends on it.
