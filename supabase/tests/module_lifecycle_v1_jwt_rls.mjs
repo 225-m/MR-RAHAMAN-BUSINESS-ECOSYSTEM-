@@ -77,9 +77,9 @@ async function restGet(path, token) {
 }
 
 async function main() {
-  const [requester, approver, applier, unauthorized, outsider] = await Promise.all([
+  const [requester, approver, applier, unauthorized, outsider, platformOwner] = await Promise.all([
     createUser("requester"), createUser("approver"), createUser("applier"),
-    createUser("unauthorized"), createUser("outsider")
+    createUser("unauthorized"), createUser("outsider"), createUser("platform-owner")
   ]);
 
   const seed = spawnSync("psql", [
@@ -92,6 +92,9 @@ async function main() {
     "-f", "supabase/tests/fixtures/module_lifecycle_v1_jwt_seed.sql"
   ], { encoding: "utf8", env: process.env });
   if (seed.status !== 0) throw new Error(`JWT fixture seed failed: ${seed.stderr || seed.stdout}`);
+
+  psql(`insert into public.platform_admin_roles(user_id,role_key,granted_by,expires_at,revoked_at)
+    values ('${platformOwner.id}'::uuid,'platform_owner','${platformOwner.id}'::uuid,null,null);`);
 
   const requesterContext = await rpc("current_access_context_v1", {}, requester.token);
   const requesterOrg = requesterContext.body?.organizations?.find(org => org.organization_id === ORG_ID);
@@ -275,6 +278,46 @@ async function main() {
     and has_function_privilege('authenticated','public.module_apply_approved_change_v1(uuid,uuid)','EXECUTE') as ok;`);
   if (!privateFunctionCheck.includes("t")) throw new Error("Private/public RPC execute grants are incorrect");
   console.log("PASS: authenticated can execute only the intended public lifecycle wrappers");
+
+  const platformOwnerContext = await rpc("current_access_context_v1", {}, platformOwner.token);
+  if (platformOwnerContext.body?.is_platform_owner !== true) {
+    throw new Error("Initial Platform Owner was not recognized by current_access_context_v1");
+  }
+
+  await rpc("platform_owner_grant_v1", {
+    p_target_user_id: requester.id,
+    p_reason: "Grant second verified Platform Owner"
+  }, platformOwner.token);
+  const secondOwnerContext = await rpc("current_access_context_v1", {}, requester.token);
+  if (secondOwnerContext.body?.is_platform_owner !== true) {
+    throw new Error("Newly granted Platform Owner was not recognized in access context");
+  }
+  console.log("PASS: active Platform Owner can grant a verified second Owner");
+
+  await rpc("platform_owner_revoke_v1", {
+    p_target_user_id: platformOwner.id,
+    p_reason: "Transfer responsibility to second Owner"
+  }, requester.token);
+  await rpc("platform_owner_revoke_v1", {
+    p_target_user_id: requester.id,
+    p_reason: "Attempt to remove final active Owner"
+  }, requester.token, "denied");
+  console.log("PASS: Owner can revoke another Owner; final active Owner self-revoke is blocked");
+
+  const platformAudit = await rpc("platform_owner_audit_list_v1", { p_limit: 50 }, requester.token);
+  if (!Array.isArray(platformAudit.body) || platformAudit.body.length !== 2 ||
+      !platformAudit.body.some(row => row.action === "platform_owner.granted") ||
+      !platformAudit.body.some(row => row.action === "platform_owner.revoked")) {
+    throw new Error("Platform Owner grant/revoke audit trail is incomplete: " + platformAudit.raw);
+  }
+  const directPlatformAudit = await jsonRequest(`${API_URL}/rest/v1/platform_audit_logs?select=id`, {
+    headers: { apikey: ANON_KEY, Authorization: `Bearer ${requester.token}` }
+  });
+  if (directPlatformAudit.response.ok) throw new Error("Authenticated user can read platform_audit_logs directly");
+  console.log("PASS: grant/revoke events are audited and audit history is available only through Owner RPC");
+
+  await rpc("platform_owner_audit_list_v1", { p_limit: 50 }, platformOwner.token, "denied");
+  console.log("PASS: revoked Platform Owner loses access to platform audit history");
 
   console.log("PASS: local GoTrue JWT + PostgREST + PostgreSQL RLS Module Lifecycle suite completed");
 }
