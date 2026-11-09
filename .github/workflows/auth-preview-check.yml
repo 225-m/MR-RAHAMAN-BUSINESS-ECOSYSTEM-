@@ -230,15 +230,15 @@ jobs:
             if (!html.includes(required)) throw new Error('Module Lifecycle UI/RPC integration missing: ' + required);
           }
           for (const rpc of ['module_request_change_v1', 'module_approval_decide_v1', 'module_apply_approved_change_v1']) {
-            if (!new RegExp('rpc\\\\([\\\\'"]' + rpc + '[\\\\'"]').test(html)) {
+            if (!html.includes('rpc("' + rpc + '"') && !html.includes("rpc('" + rpc + "'")) {
               throw new Error('Branch Preview must invoke the V1 public RPC: ' + rpc);
             }
           }
-          if (/branch_module_set_enabled/i.test(html)) {
+          if (html.includes('branch_module_set_enabled')) {
             throw new Error('Legacy module enable/disable RPC must not be called by Branch Preview');
           }
-          if (/from\\(["']organization_modules["']\\)\\.(insert|update|upsert|delete)/i.test(html)) {
-            throw new Error('Branch Preview must not mutate organization_modules directly');
+          for (const forbidden of ['from("organization_modules").insert', 'from("organization_modules").update', 'from("organization_modules").upsert', 'from("organization_modules").delete']) {
+            if (html.includes(forbidden)) throw new Error('Branch Preview must not mutate organization_modules directly');
           }
           if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
             throw new Error('Server secret detected in Branch browser source');
