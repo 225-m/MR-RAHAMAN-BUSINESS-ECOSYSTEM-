@@ -143,6 +143,28 @@ jobs:
           psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_cutover.sql
           psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_fail_closed_rollback.sql
 
+      - name: Verify legacy cutover fails safely when access context is missing
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          createdb module_lifecycle_preflight_fail_test
+          psql -d module_lifecycle_preflight_fail_test -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/module_lifecycle_v1_schema.sql
+          psql -d module_lifecycle_preflight_fail_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1.sql
+          if psql -d module_lifecycle_preflight_fail_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_cutover.sql; then
+            echo "Cutover unexpectedly succeeded without current_access_context_v1"
+            exit 1
+          fi
+          grants="$(psql -d module_lifecycle_preflight_fail_test -At -c "select has_function_privilege('authenticated','public.branch_module_set_enabled(uuid,boolean,text)','EXECUTE')::text || '|' || has_function_privilege('authenticated','private.branch_module_set_enabled(uuid,boolean,text)','EXECUTE')::text")"
+          if [ "$grants" != "true|true" ]; then
+            echo "Legacy grants changed despite failed preflight: $grants"
+            exit 1
+          fi
+          echo "PASS: missing access context aborts cutover and preserves prior grants"
+
       - name: Test Last Active Owner guards in disposable PostgreSQL
         env:
           PGHOST: localhost
