@@ -89,6 +89,12 @@ begin
   exception when sqlstate '42501' then v_blocked := true;
   end;
   if not v_blocked then raise exception 'T07 FAILED: revoked Owner read platform audit logs'; end if;
+  v_blocked := false;
+  begin
+    perform public.platform_owner_grant_v1('10000000-0000-0000-0000-000000000004','Revoked actor must not grant');
+  exception when sqlstate '42501' then v_blocked := true;
+  end;
+  if not v_blocked then raise exception 'T07 FAILED: revoked Owner granted another Platform Owner'; end if;
 end;
 $test$;
 reset role;
