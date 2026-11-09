@@ -6,6 +6,9 @@
 
 begin;
 
+-- Platform Owner assignments are only mutated through audited SECURITY DEFINER RPCs.
+revoke all on table public.platform_admin_roles from public, anon, authenticated, service_role;
+
 create table if not exists public.platform_audit_logs (
   id uuid primary key default pg_catalog.gen_random_uuid(),
   actor_user_id uuid not null references auth.users(id),
