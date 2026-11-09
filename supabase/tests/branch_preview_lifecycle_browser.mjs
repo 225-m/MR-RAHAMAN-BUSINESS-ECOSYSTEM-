@@ -141,7 +141,7 @@ const mockSdk = `
 const browser = await chromium.launch({ headless: true });
 let failures = [];
 try {
-  server.listen(4173, "127.0.0.1");
+  await new Promise(resolve => server.listen(4173, "127.0.0.1", resolve));
   async function openActor(actor, viewport = { width: 1280, height: 900 }) {
     const context = await browser.newContext({ viewport, isMobile: viewport.width < 600, hasTouch: viewport.width < 600 });
     const page = await context.newPage();
