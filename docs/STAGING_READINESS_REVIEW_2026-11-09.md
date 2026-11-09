@@ -141,6 +141,18 @@ Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 Production remains unchanged.
 
 
+## Production legacy RPC revalidation — read-only, 9 Nov 2026
+
+A fresh read-only inspection of Production confirms the cutover blocker is still present:
+
+- `public.branch_module_set_enabled(uuid,boolean,text)` exists, is SECURITY INVOKER, and remains executable by `authenticated` and `service_role`.
+- `private.branch_module_set_enabled(uuid,boolean,text)` exists, is SECURITY DEFINER, and remains executable by `authenticated`.
+- `public.current_access_context_v1()`, the three Module Lifecycle V1 RPCs, and audited Platform Owner handover RPC are not installed in Production.
+- `organization_modules` has RLS enabled; authenticated has SELECT only and no direct INSERT/UPDATE/DELETE.
+- Active Platform Owners: 0. Organizations: 0. Organization members: 0.
+
+This confirms the old RPC is an active approval bypass even though direct table DML is denied. No Production grants, functions, rows, policies, or schema were changed by this inspection. Do not run the cutover until the V1 client path and all prerequisite safeguards are deployed and verified in an isolated staging environment.
+
 ## Android Chrome test preparation
 
 A physical Android Chrome checklist is now available at [ANDROID_CHROME_SMOKE_TEST_PLAN.md](./ANDROID_CHROME_SMOKE_TEST_PLAN.md). Playwright 390×844 viewport testing is not treated as a physical Android test. Device execution remains blocked on a safe isolated preview URL; Production must not be used for this smoke test.
