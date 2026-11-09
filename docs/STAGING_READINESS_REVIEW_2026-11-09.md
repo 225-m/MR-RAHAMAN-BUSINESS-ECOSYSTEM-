@@ -115,8 +115,7 @@ The Branch Preview source at branch-preview/index.html now includes an organizat
 - Apply controls are gated by module.read + module.manage and appear only for linked approved requests.
 - The UI calls only module_request_change_v1, module_approval_decide_v1, and module_apply_approved_change_v1.
 - The UI does not call branch_module_set_enabled and does not directly mutate lifecycle tables.
-- The source passed a local JavaScript parse check, duplicate-ID check, DOM-reference check, and static V1 permission/RPC assertions.
-- CI validation was extended to enforce these source contracts. A GitHub Actions result for the new commits has not yet been independently verified.
+- The source passed a local JavaScript parse check, duplicate-ID check, DOM-reference check, and static V1 permission/RPC assertions. GitHub Actions Run #191 passed both the local Supabase GoTrue JWT/RLS job and static validation, including the Owner guard PostgreSQL tests. The separate Playwright browser/mobile viewport test was added afterward and is pending in Run #197.
 
 Implementation notes: docs/BRANCH_PREVIEW_MODULE_LIFECYCLE_V1.md.
 
@@ -126,13 +125,13 @@ Read-only Production schema review confirmed that platform_admin_roles, app_role
 
 A separate draft, supabase/drafts/last_active_owner_guard_v1.sql, and disposable fixture/tests have been added on the feature branch. The draft protects the last active platform_owner and canonical organization role_key owner against revoke, expiry, demotion, suspension, deletion and role deactivation. Advisory transaction locks are used to serialize concurrent removal attempts.
 
-Known release blocker: the draft does not yet protect critical role_permissions mappings from being stripped out of the final Owner role. The canonical organization Owner role key also needs final confirmation. The Owner guard is therefore NOT complete and must not be applied to Production. CI execution for the new Owner tests has not yet been confirmed.
+Known release blocker: the draft does not yet protect critical role_permissions mappings from being stripped out of the final Owner role. The canonical organization Owner role key also needs final confirmation. The Owner guard is therefore NOT complete and must not be applied to Production. The disposable PostgreSQL Owner guard suite passed in GitHub Actions Run #191. This validates the drafted trigger behavior in the fixture only; it does not resolve the critical role-permission-floor gap.
 
 Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 
 ## Remaining work
 
-1. Run and verify CI after the Branch Preview and Owner guard changes.
+1. Verify the new Playwright browser/mobile viewport test in GitHub Actions Run #197; then run real JWT browser integration against the isolated Supabase stack.
 2. Execute Browser smoke tests with real local GoTrue JWT sessions against the isolated stack; test Request, self-approval denial, independent approval, Apply, permission revocation, and audit visibility through the UI.
 3. Perform Android-sized viewport and real-device smoke tests when an Android browser/device test environment is available. Do not claim real-device testing from desktop viewport emulation.
 4. Implement and test Last Active Owner protections at the database layer.
