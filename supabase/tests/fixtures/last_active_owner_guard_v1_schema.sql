@@ -35,6 +35,9 @@ create table public.platform_admin_roles(
  expires_at timestamptz,
  revoked_at timestamptz
 );
+create unique index platform_admin_roles_single_active_owner_idx
+  on public.platform_admin_roles(role_key)
+  where role_key = 'platform_owner' and revoked_at is null and expires_at is null;
 
 create table public.organizations(
  id uuid primary key,
