@@ -98,7 +98,7 @@ The CLI initially warned that several service-exclusion labels were invalid; tho
 - [x] Branch Preview source now uses the V1 Request → Independent Approval → Apply RPCs on the feature branch; deployment and runtime verification remain outstanding.
 - [ ] Real browser/Android smoke tests pass against an isolated test environment.
 - [x] Legacy RPC cutover script passes in the disposable local database; Production rollback/cutover review remains outstanding.
-- [ ] Owner lockout safeguards and audit coverage are tested.
+- [x] Last Active Owner guards, single-slot Platform Owner handover, paired immutable audit events, and least-privilege API grants pass disposable PostgreSQL + local GoTrue JWT tests (Run #285).
 - [ ] Explicit user authorization is obtained before any Production migration or deployment.
 
 ## Current status
@@ -132,7 +132,7 @@ Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 ## Remaining work
 
 1. Preserve the V1 canonical organization Owner key role_key = owner in all future role seeds and bootstrap code.
-2. Verify the new platform_owner_management_v1.sql integration tests. The draft now provides active-Owner-only single-slot handover RPC, an append-only platform audit log, and an Owner-only audit-list RPC; direct API-role table access is revoked.
+2. Verify the new platform_owner_management_v1.sql integration tests. The draft provides active-Owner-only single-slot handover RPC, an append-only platform audit log, and an Owner-only audit-list RPC; direct API-role table access is revoked. Disposable PostgreSQL and real GoTrue JWT/PostgREST integration tests passed in [Run #285](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42557995122).
 3. Perform real Android Chrome/device smoke tests. The 390×844 Playwright viewport test is not a physical Android device test.
 4. A full browser-to-local-Supabase session integration is still outstanding: the Playwright UI test uses a mocked client, while the separate local GoTrue JWT/PostgREST/RLS suite verifies real database authorization.
 5. Re-review the final legacy cutover plan against every deployed client and scheduled/Edge Function consumer. Keep Production unchanged until a separately approved release.
