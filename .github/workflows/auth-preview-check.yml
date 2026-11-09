@@ -285,3 +285,25 @@ jobs:
           }
           console.log('PASS: Branch JS syntax, DOM references, email-only access gate, branch RPC integration, browser secret scan, location dataset, and draft SQL safety.');
           NODE
+
+      - name: Validate one-time Owner bootstrap isolation
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const edge = fs.readFileSync('supabase/functions/owner-bootstrap/index.ts', 'utf8');
+          const v2 = fs.readFileSync('supabase/drafts/first_platform_owner_bootstrap_v2.sql', 'utf8');
+          const v1 = fs.readFileSync('supabase/drafts/owner_bootstrap_v1_DO_NOT_APPLY.sql', 'utf8');
+          const uuidLiteral = /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+          if (uuidLiteral.test(edge) || uuidLiteral.test(v2)) throw new Error('Bootstrap allowlisted subject must not be hardcoded in current source');
+          for (const required of ['OWNER_BOOTSTRAP_ALLOWED_USER_ID', 'OWNER_BOOTSTRAP_ALLOWED_ORIGIN', 'getUser(token)', 'email_confirmed_at', 'bootstrap_first_platform_owner_v2']) {
+            if (!edge.includes(required)) throw new Error('Owner bootstrap Edge Function guard missing: ' + required);
+          }
+          for (const required of ["request.jwt.claim.role", 'service_role required', 'p_expected_user_id', '41', 'core_module_count', 'pg_advisory_xact_lock', 'INITIAL_PLATFORM_OWNER_BOOTSTRAP_COMPLETED']) {
+            if (!v2.includes(required)) throw new Error('Owner bootstrap SQL guard missing: ' + required);
+          }
+          if (/create\s+or\s+replace\s+function/i.test(v1)) throw new Error('Retired Owner bootstrap v1 must remain non-executable');
+          if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(edge)) {
+            throw new Error('Service-role secret detected in Owner bootstrap source');
+          }
+          console.log('PASS: owner bootstrap subject/origin are environment allowlisted, RPC is service_role-only, v1 is retired, and no browser/server secret is hardcoded.');
+          NODE
