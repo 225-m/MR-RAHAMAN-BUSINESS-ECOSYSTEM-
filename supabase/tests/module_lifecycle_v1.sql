@@ -34,6 +34,28 @@ select set_config('test.expected_status', case when :'request_type' = 'disable' 
 select set_config('test.approval_id', '', true);
 select set_config('test.change_id', '', true);
 
+-- T00: API callers must not invoke private SECURITY DEFINER implementations directly.
+do $test$
+begin
+  if pg_catalog.has_function_privilege('authenticated',
+       'private.module_request_change_v1(uuid,text,text,text)', 'EXECUTE')
+     or pg_catalog.has_function_privilege('authenticated',
+       'private.module_approval_decide_v1(uuid,uuid,text,text)', 'EXECUTE')
+     or pg_catalog.has_function_privilege('authenticated',
+       'private.module_apply_approved_change_v1(uuid,uuid)', 'EXECUTE') then
+    raise exception 'T00 FAILED: authenticated can execute a private lifecycle implementation';
+  end if;
+  if not pg_catalog.has_function_privilege('authenticated',
+       'public.module_request_change_v1(uuid,text,text,text)', 'EXECUTE')
+     or not pg_catalog.has_function_privilege('authenticated',
+       'public.module_approval_decide_v1(uuid,uuid,text,text)', 'EXECUTE')
+     or not pg_catalog.has_function_privilege('authenticated',
+       'public.module_apply_approved_change_v1(uuid,uuid)', 'EXECUTE') then
+    raise exception 'T00 FAILED: authenticated lifecycle wrapper grants are missing';
+  end if;
+end;
+$test$;
+
 -- T01: create exactly one request and capture both identifiers.
 select
   (r.result->>'module_change_request_id')::uuid as change_id,
