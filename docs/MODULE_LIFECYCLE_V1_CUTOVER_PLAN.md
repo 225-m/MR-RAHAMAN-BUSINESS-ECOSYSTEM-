@@ -26,7 +26,8 @@ The Branch Preview feature-branch source has been switched to the V1 RPCs. No cu
 4. Verify private implementations are not directly executable by API roles.
 5. Deploy the Branch Preview client that uses only the V1 RPCs.
 6. Pass real GoTrue JWT/PostgREST/RLS tests, browser UI tests, and real Android browser/device smoke tests.
-7. Confirm Last Active Owner protections and canonical Owner role mapping before any production governance migration.
+7. Install and test Last Active Owner guards, the nine-permission organization Owner floor, and audited single-slot Platform Owner handover; preserve canonical organization role_key = owner.
+8. Complete physical Android Chrome smoke testing on a safe isolated preview URL.
 
 ## Cutover transaction
 
@@ -36,6 +37,7 @@ supabase/drafts/module_lifecycle_v1_cutover.sql now performs a preflight before 
 - All three V1 public RPCs exist and are authenticated-only.
 - Authenticated cannot execute private lifecycle implementations.
 - Authenticated has no direct INSERT/UPDATE/DELETE on organization_modules, module_change_requests or approval_requests.
+- Last Active Owner guard triggers, Owner permission-floor triggers, Platform Owner audit table RLS, and least-privilege Owner handover RPC grants are present.
 - Legacy public/private RPC execution is revoked from PUBLIC, anon, authenticated and service_role.
 
 The script is transactional. If a preflight or post-revocation assertion fails, the transaction aborts and the grant changes roll back.
@@ -48,12 +50,15 @@ Do not restore execute grants on branch_module_set_enabled as an ordinary rollba
 
 ## Current verification
 
-- Module Lifecycle V1 disposable PostgreSQL tests: PASS in prior runs.
-- Real GoTrue JWT/PostgREST/RLS suite: PASS in prior run.
-- Playwright Chromium request/approve/apply and mobile viewport smoke test: PASS in Run #197.
-- Last Active Owner and permission-floor PostgreSQL suite: PASS in Run #205.
-- GitHub Actions Run #249 static-auth-check passed the updated Playwright UI test, Owner guard tests, bootstrap source checks, successful cutover + fail-closed rollback assertions, and a negative preflight test proving that a missing current_access_context_v1 aborts before legacy grants are changed. GitHub Actions Run #249 passed the full local GoTrue JWT/PostgREST/RLS suite with current_access_context_v1 assertions, followed by the cutover preflight and fail-closed rollback in the isolated local Supabase stack.
-- No Production SQL, grants, deployment, or Pages publication was changed.
+- Module Lifecycle V1 disposable PostgreSQL tests: PASS.
+- Real GoTrue JWT/PostgREST/RLS authorization tests: PASS in Run #285.
+- Last Active Owner guards, single-slot Owner handover, paired immutable grant/revoke audit events, and least-privilege Owner RPC grants: PASS in Run #285.
+- Mocked Playwright Chromium requester/approver/applier/viewer and 390×844 mobile viewport suite: PASS in Run #285.
+- Real Branch Preview UI against isolated local Supabase using GoTrue JWT sessions is now in CI. Requester submission and independent approver interaction passed in Run #297; a test assertion was corrected to scope the active status to the selected module card. The full rerun is pending.
+- Physical Android Chrome/device testing is outstanding. The checklist is [ANDROID_CHROME_SMOKE_TEST_PLAN.md](./ANDROID_CHROME_SMOKE_TEST_PLAN.md); mobile viewport emulation is not treated as a device test.
+- Cutover preflight and fail-closed rollback assertions pass in the disposable environment. A negative preflight test proves that missing current_access_context_v1 aborts before legacy grants change.
+- A fresh read-only Production inspection on 9 Nov 2026 confirms both legacy RPCs remain executable by authenticated; the public wrapper is SECURITY INVOKER and private implementation is SECURITY DEFINER. The V1 access-context, lifecycle and Owner handover RPCs are not installed in Production. organization_modules has RLS and authenticated SELECT only. Active Owners, Organizations and Organization Members remain zero.
+- No Production SQL, grants, data, deployment, or Pages publication was changed.
 
 ## Explicit release boundary
 
