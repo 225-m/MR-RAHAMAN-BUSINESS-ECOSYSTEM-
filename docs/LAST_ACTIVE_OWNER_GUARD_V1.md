@@ -45,3 +45,14 @@ The new fixture and integration test cover:
 - Normal removal of a non-Owner member.
 
 CI runs these tests in a separate disposable PostgreSQL database. Passing tests do not deploy the draft or modify Production.
+
+## Audited Platform Owner administration
+
+The companion draft supabase/drafts/platform_owner_management_v1.sql adds:
+
+- platform_owner_grant_v1 — only an active Platform Owner can grant another verified Auth user.
+- platform_owner_revoke_v1 — only an active Platform Owner can revoke; the last-owner trigger blocks lockout.
+- platform_owner_audit_list_v1 — audit history is visible only to an active Platform Owner.
+- public.platform_audit_logs — append-only, with actor, target, action, reason, old/new values and timestamp.
+
+Direct API-role access to platform_admin_roles and platform_audit_logs is revoked. The V2 first-owner bootstrap is updated to write the initial platform_owner.granted event into the same platform audit table. The management draft's disposable integration suite is added to CI; its result must pass before this part is considered verified.
