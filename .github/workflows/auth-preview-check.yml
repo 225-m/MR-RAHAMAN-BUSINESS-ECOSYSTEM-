@@ -177,6 +177,20 @@ jobs:
           psql -d last_active_owner_guard_test -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/last_active_owner_guard_v1_schema.sql
           psql -d last_active_owner_guard_test -v ON_ERROR_STOP=1 -f supabase/drafts/last_active_owner_guard_v1.sql
           psql -d last_active_owner_guard_test -v ON_ERROR_STOP=1 -f supabase/tests/last_active_owner_guard_v1.sql
+      - name: Test audited Platform Owner management in disposable PostgreSQL
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          createdb platform_owner_management_test
+          psql -d platform_owner_management_test -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/last_active_owner_guard_v1_schema.sql
+          psql -d platform_owner_management_test -v ON_ERROR_STOP=1 -f supabase/drafts/last_active_owner_guard_v1.sql
+          psql -d platform_owner_management_test -v ON_ERROR_STOP=1 -f supabase/drafts/platform_owner_management_v1.sql
+          psql -d platform_owner_management_test -v ON_ERROR_STOP=1 -f supabase/tests/platform_owner_management_v1.sql
+
       - name: Validate authentication preview
         run: |
           node <<'NODE'
