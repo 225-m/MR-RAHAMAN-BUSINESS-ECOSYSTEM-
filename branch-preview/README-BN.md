@@ -3,7 +3,7 @@
 এই Preview কেবল Supabase project `pojhrvmuamdejlutxpng`-এর জন্য। MUHAIMIN Dairy-এর সঙ্গে কোনো code, data, auth বা configuration শেয়ার করে না।
 
 ## Scope
-- Email + phone verification ছাড়া UI বন্ধ থাকে।
+- Email verification এবং database-backed `current_access_context_v1()` থেকে `branch.read` permission যাচাই না হলে UI বন্ধ থাকে। Phone OTP v1-এ ব্যবহৃত হয় না।
 - Active `organization_members` membership ছাড়া Organization/Branch data দেখায় না।
 - Organization-scoped RPC ব্যবহার করে branch list/create/update/status, profile, contacts, operating hours, settings, staff access assign/revoke ও audit list।
 - RLS-invoker `branch_dashboard_v1` view থেকে KPI summary (total/active/inactive/suspended, profile coverage, daily capacity, active contacts)।
@@ -46,7 +46,7 @@ All writes must be authorized by the existing database functions and RLS. UI vis
 
 ## Static checks completed (2026-11-08)\n- Inline JavaScript syntax: PASS.\n- Duplicate HTML IDs: none.\n- Required branch RPC names and UI hooks present.\n- No service-role/secret key is embedded.\n\n## Manual test checklist
 1. Unauthenticated visitor remains at the secure-access gate.
-2. Unverified email or phone remains blocked.
+2. Unverified email remains blocked; phone verification is not part of v1.
 3. Verified user without active organization membership remains blocked.
 4. Active member with `branch.read` can list only authorized branches.
 5. User without write permissions receives a database authorization error.
