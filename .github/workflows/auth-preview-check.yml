@@ -47,6 +47,10 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
       - name: Install PostgreSQL client
         run: |
           sudo apt-get update
