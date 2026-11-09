@@ -78,8 +78,9 @@ begin
   if not private.is_active_platform_owner_v1(v_actor_id) then
     raise exception 'Active Platform Owner required' using errcode = '42501';
   end if;
-  if p_target_user_id is null or p_reason is null or pg_catalog.length(pg_catalog.btrim(p_reason)) < 5 then
-    raise exception 'Target user and a reason of at least five characters are required' using errcode = '22023';
+  if p_target_user_id is null or p_target_user_id = v_actor_id
+     or p_reason is null or pg_catalog.length(pg_catalog.btrim(p_reason)) < 5 then
+    raise exception 'A different target user and a reason of at least five characters are required' using errcode = '22023';
   end if;
 
   perform pg_catalog.pg_advisory_xact_lock(73021, 1);
@@ -91,19 +92,45 @@ begin
     raise exception 'Target Auth user must exist and have a verified email' using errcode = '22023';
   end if;
 
-  if private.is_active_platform_owner_v1(p_target_user_id) then
-    raise exception 'Target user is already an active Platform Owner' using errcode = '23505';
+  select par.id into v_role_id
+  from public.platform_admin_roles par
+  where par.user_id = v_actor_id
+    and par.role_key = 'platform_owner'
+    and par.revoked_at is null
+    and (par.expires_at is null or par.expires_at > pg_catalog.statement_timestamp())
+  for update;
+
+  if v_role_id is null then
+    raise exception 'Active Platform Owner assignment not found' using errcode = '42501';
   end if;
 
-  insert into public.platform_admin_roles(user_id, role_key, granted_by, expires_at, revoked_at)
-  values (p_target_user_id, 'platform_owner', v_actor_id, null, null)
-  returning id into v_role_id;
+  if private.is_active_platform_owner_v1(p_target_user_id) then
+    raise exception 'Target user is already the active Platform Owner' using errcode = '23505';
+  end if;
+
+  -- Production schema deliberately enforces one active platform_owner slot.
+  -- Transfer that slot atomically instead of attempting a second active grant.
+  update public.platform_admin_roles
+  set user_id = p_target_user_id,
+      granted_by = v_actor_id,
+      granted_at = pg_catalog.clock_timestamp(),
+      expires_at = null,
+      revoked_at = null
+  where id = v_role_id;
+
+  insert into public.platform_audit_logs(
+    actor_user_id, target_user_id, action, role_key, reason, old_values, new_values
+  ) values (
+    v_actor_id, v_actor_id, 'platform_owner.revoked', 'platform_owner', pg_catalog.btrim(p_reason),
+    pg_catalog.jsonb_build_object('platform_admin_role_id', v_role_id, 'active', true),
+    pg_catalog.jsonb_build_object('active', false, 'transferred_to', p_target_user_id)
+  );
 
   insert into public.platform_audit_logs(
     actor_user_id, target_user_id, action, role_key, reason, old_values, new_values
   ) values (
     v_actor_id, p_target_user_id, 'platform_owner.granted', 'platform_owner', pg_catalog.btrim(p_reason),
-    null, pg_catalog.jsonb_build_object('platform_admin_role_id', v_role_id, 'active', true)
+    null, pg_catalog.jsonb_build_object('platform_admin_role_id', v_role_id, 'active', true, 'transferred_from', v_actor_id)
   );
 
   return v_role_id;
