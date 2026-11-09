@@ -418,7 +418,7 @@ begin
       'approved',
       'expired approval test'
     );
-    raise exception 'T10 FAILED: expired approval was decided';
+    raise exception 'T11 FAILED: expired approval was decided';
   exception when sqlstate '55000' then
     null;
   end;
