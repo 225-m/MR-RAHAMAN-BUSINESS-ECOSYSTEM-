@@ -1,6 +1,6 @@
 -- MR RAHAMAN Business Ecosystem — First Platform Owner + Organization Owner Bootstrap v2
 -- DRAFT ONLY. Do not apply to Production.
--- Target: pojhrvmuamdejlutxpng. One-time allowlisted, verified Auth account.
+-- Target: pojhrvmuamdejlutxpng. One-time allowlisted, verified Auth account.\n-- The allowlisted subject is configured only in the Edge Function environment, not in source.
 -- This draft replaces v1 conceptually; v1 remains unsafe and must not be used.
 
 create or replace function public.bootstrap_first_platform_owner_v2(
@@ -12,13 +12,17 @@ security definer
 set search_path = pg_catalog, public, auth
 as $function$
 declare
-  v_user_id constant uuid := 'd1b98876-7803-469d-9228-545ab8f8b3d4';
+  v_user_id uuid := p_expected_user_id;
   v_org_id uuid;
   v_role_id uuid;
   v_permission_count integer;
   v_core_module_count integer;
   v_email_confirmed boolean;
 begin
+  if p_expected_user_id is null then
+    raise exception 'An allowlisted expected user ID is required' using errcode = '22023';
+  end if;
+
   if coalesce(current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
     raise exception 'service_role required' using errcode = '42501';
   end if;
