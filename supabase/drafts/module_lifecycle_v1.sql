@@ -228,8 +228,12 @@ begin
   where mcr.approval_request_id = v_approval.id
     and mcr.organization_id = p_organization_id
   for update;
-  if not found or v_change.status <> 'pending' then
-    raise exception 'Linked module change is not pending' using errcode = '55000';
+  if not found or v_change.status <> 'pending'
+     or v_approval.target_id is distinct from v_change.module_id
+     or v_approval.request_payload->>'module_change_request_id' is distinct from v_change.id::text
+     or v_approval.request_payload->>'request_type' is distinct from v_change.request_type
+     or v_approval.required_approvals <> 1 then
+    raise exception 'Linked module change is not a valid V1 pending request' using errcode = '55000';
   end if;
 
   insert into public.approval_actions (
@@ -319,7 +323,10 @@ begin
   for update;
   if not found or v_approval.status <> 'approved'
      or v_change.requested_by is distinct from v_approval.requested_by
-     or v_approval.request_payload->>'module_change_request_id' is distinct from v_change.id::text then
+     or v_approval.target_id is distinct from v_change.module_id
+     or v_approval.request_payload->>'module_change_request_id' is distinct from v_change.id::text
+     or v_approval.request_payload->>'request_type' is distinct from v_change.request_type
+     or v_approval.required_approvals <> 1 then
     raise exception 'A matching linked approved decision is required' using errcode = '55000';
   end if;
   if v_approval.expires_at is not null and v_approval.expires_at <= pg_catalog.now() then
@@ -375,9 +382,12 @@ begin
         and not exists (
           select 1
           from public.organization_modules dep_om
+          join public.platform_modules dep_pm on dep_pm.id = dep_om.module_id and dep_pm.is_active = true
           where dep_om.organization_id = p_organization_id
             and dep_om.module_id = md.depends_on_module_id
             and dep_om.status = 'active'
+            -- V1 uses conservative exact-version pins; no lexicographic semver comparison.
+            and (md.minimum_version is null or dep_om.installed_version = md.minimum_version)
         )
     ) then
       raise exception 'A mandatory dependency is not active' using errcode = '55000';
