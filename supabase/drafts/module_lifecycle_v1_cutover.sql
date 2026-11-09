@@ -42,6 +42,57 @@ begin
      or pg_catalog.has_function_privilege('authenticated','private.module_apply_approved_change_v1(uuid,uuid)','EXECUTE') then
     raise exception 'Authenticated can execute private Module Lifecycle implementations';
   end if;
+
+  if pg_catalog.to_regclass('public.platform_audit_logs') is null
+     or pg_catalog.to_regprocedure('public.platform_owner_grant_v1(uuid,text)') is null
+     or pg_catalog.to_regprocedure('public.platform_owner_revoke_v1(uuid,text)') is null
+     or pg_catalog.to_regprocedure('public.platform_owner_audit_list_v1(integer)') is null then
+    raise exception 'Audited Platform Owner management surface is missing';
+  end if;
+
+  if not pg_catalog.has_function_privilege('authenticated','public.platform_owner_grant_v1(uuid,text)','EXECUTE')
+     or not pg_catalog.has_function_privilege('authenticated','public.platform_owner_revoke_v1(uuid,text)','EXECUTE')
+     or not pg_catalog.has_function_privilege('authenticated','public.platform_owner_audit_list_v1(integer)','EXECUTE')
+     or pg_catalog.has_function_privilege('anon','public.platform_owner_grant_v1(uuid,text)','EXECUTE')
+     or pg_catalog.has_function_privilege('anon','public.platform_owner_revoke_v1(uuid,text)','EXECUTE')
+     or pg_catalog.has_function_privilege('anon','public.platform_owner_audit_list_v1(integer)','EXECUTE')
+     or pg_catalog.has_function_privilege('service_role','public.platform_owner_grant_v1(uuid,text)','EXECUTE')
+     or pg_catalog.has_function_privilege('service_role','public.platform_owner_revoke_v1(uuid,text)','EXECUTE')
+     or pg_catalog.has_function_privilege('service_role','public.platform_owner_audit_list_v1(integer)','EXECUTE') then
+    raise exception 'Platform Owner management RPC grants are not least-privilege';
+  end if;
+
+  if pg_catalog.has_table_privilege('authenticated','public.platform_admin_roles','SELECT')
+     or pg_catalog.has_table_privilege('authenticated','public.platform_admin_roles','INSERT')
+     or pg_catalog.has_table_privilege('authenticated','public.platform_admin_roles','UPDATE')
+     or pg_catalog.has_table_privilege('authenticated','public.platform_admin_roles','DELETE')
+     or pg_catalog.has_table_privilege('service_role','public.platform_admin_roles','INSERT')
+     or pg_catalog.has_table_privilege('service_role','public.platform_admin_roles','UPDATE')
+     or pg_catalog.has_table_privilege('service_role','public.platform_admin_roles','DELETE')
+     or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','SELECT')
+     or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','INSERT')
+     or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','UPDATE')
+     or pg_catalog.has_table_privilege('authenticated','public.platform_audit_logs','DELETE') then
+    raise exception 'Direct Platform Owner assignment/audit table access is granted';
+  end if;
+
+  if (select count(*) from pg_catalog.pg_trigger t
+      where t.tgname in (
+        'platform_admin_roles_last_owner_guard',
+        'app_roles_last_owner_guard',
+        'organization_members_last_owner_guard',
+        'organization_members_owner_permission_floor',
+        'role_permissions_owner_floor_guard'
+      )
+      and t.tgenabled in ('O','A')
+      and not t.tgisinternal) <> 5 then
+    raise exception 'Last Active Owner and Owner permission-floor triggers are incomplete or disabled';
+  end if;
+
+  if not (select c.relrowsecurity from pg_catalog.pg_class c
+          where c.oid = 'public.platform_audit_logs'::regclass) then
+    raise exception 'platform_audit_logs RLS is not enabled';
+  end if;
 end;
 $preflight$;
 
