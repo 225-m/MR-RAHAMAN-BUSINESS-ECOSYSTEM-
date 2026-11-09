@@ -90,8 +90,8 @@ module_apply_approved_change(org_id, module_change_request_id)
 ## RPC security boundary
 
 - Private implementation functions belong in non-exposed private schema with fixed empty/pinned search_path and explicit auth.uid() checks.
-- Public RPC wrappers must be SECURITY INVOKER and contain no privileged state-change logic.
-- Revoke EXECUTE from PUBLIC, anon and authenticated by default; grant only the intended authenticated caller to the reviewed public wrapper.
+- Public RPC wrappers are narrow SECURITY DEFINER privilege-boundary shims with an empty search_path; the private implementation contains all business logic and independently checks auth.uid(), live organization membership and the required permission.
+- Revoke EXECUTE on private implementations from PUBLIC, anon, authenticated and service_role. Authenticated users receive EXECUTE only on the three reviewed public wrappers; PUBLIC/anon/service_role receive none.
 - Do not expose SECURITY DEFINER lifecycle mutation functions in public.
 - Keep direct table mutation privileges revoked; SELECT remains subject to existing RLS.
 - The legacy branch_module_set_enabled private implementation and public wrapper must have authenticated EXECUTE revoked in the same coordinated release after frontend migration. Also inspect/revoke service_role and inherited PUBLIC grants; do not assume the grant set.
