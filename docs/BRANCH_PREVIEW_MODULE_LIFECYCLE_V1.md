@@ -10,7 +10,7 @@ Branch Preview now exposes an organization-scoped Module Lifecycle area:
 
 1. **Request** — a member with `module.read` and `module.request` can request enable/disable for a non-core module. A reason is required.
 2. **Independent Approval** — a different active member with `approval.approve` can approve or reject. The requester is not shown an approval action for their own request.
-3. **Apply** — an actor with `module.manage` can apply an approved request. The UI requires an approved linked approval record before showing the action.
+3. **Apply** — the UI requires `approval.read` to inspect the linked decision and `module.manage` to show Apply; the database RPC independently rechecks `module.manage` and the approved linkage.
 
 The UI calls only these public RPCs:
 
