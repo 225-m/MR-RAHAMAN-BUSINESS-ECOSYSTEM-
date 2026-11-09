@@ -103,6 +103,15 @@ begin
      or has_table_privilege('authenticated','public.platform_audit_logs','DELETE') then
     raise exception 'T08 FAILED: authenticated direct platform audit table access is granted';
   end if;
+  if has_table_privilege('authenticated','public.platform_admin_roles','SELECT')
+     or has_table_privilege('authenticated','public.platform_admin_roles','INSERT')
+     or has_table_privilege('authenticated','public.platform_admin_roles','UPDATE')
+     or has_table_privilege('authenticated','public.platform_admin_roles','DELETE')
+     or has_table_privilege('service_role','public.platform_admin_roles','INSERT')
+     or has_table_privilege('service_role','public.platform_admin_roles','UPDATE')
+     or has_table_privilege('service_role','public.platform_admin_roles','DELETE') then
+    raise exception 'T08 FAILED: API role has direct platform Owner assignment access';
+  end if;
   if has_function_privilege('anon','public.platform_owner_grant_v1(uuid,text)','EXECUTE')
      or has_function_privilege('service_role','public.platform_owner_grant_v1(uuid,text)','EXECUTE')
      or has_function_privilege('anon','public.platform_owner_revoke_v1(uuid,text)','EXECUTE')
