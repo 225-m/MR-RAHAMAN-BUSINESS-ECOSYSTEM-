@@ -65,6 +65,41 @@ insert into public.app_roles(id,organization_id,role_key,is_active) values
  ('40000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','owner',true),
  ('40000000-0000-0000-0000-000000000003','30000000-0000-0000-0000-000000000001','staff',true);
 
+insert into public.permissions(id,permission_key) values
+ ('a0000000-0000-0000-0000-000000000001','member.invite'),
+ ('a0000000-0000-0000-0000-000000000002','member.manage'),
+ ('a0000000-0000-0000-0000-000000000003','role.manage'),
+ ('a0000000-0000-0000-0000-000000000004','organization.update'),
+ ('a0000000-0000-0000-0000-000000000005','branch.manage'),
+ ('a0000000-0000-0000-0000-000000000006','approval.approve'),
+ ('a0000000-0000-0000-0000-000000000007','module.manage'),
+ ('a0000000-0000-0000-0000-000000000008','audit.read'),
+ ('a0000000-0000-0000-0000-000000000009','permission.read');
+
+insert into public.role_permissions(organization_id,role_id,permission_id)
+select r.organization_id,r.id,p.id
+from public.app_roles r cross join public.permissions p
+where r.role_key='owner' and r.id in (
+ '40000000-0000-0000-0000-000000000001',
+ '40000000-0000-0000-0000-000000000002'
+);
+
+insert into public.app_roles(id,organization_id,role_key,is_active)
+values('40000000-0000-0000-0000-000000000004','30000000-0000-0000-0000-000000000001','owner',true);
+
+-- T04b: an incomplete Owner role cannot be assigned to an active member.
+do $test$
+declare v_blocked boolean := false;
+begin
+  begin
+    insert into public.organization_members(id,organization_id,user_id,role_id,member_status)
+    values('50000000-0000-0000-0000-000000000004','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000004','40000000-0000-0000-0000-000000000004','active');
+  exception when sqlstate '55000' then v_blocked := true;
+  end;
+  if not v_blocked then raise exception 'T04b FAILED: incomplete Owner role was assigned'; end if;
+end;
+$test$;
+
 insert into public.organization_members(id,organization_id,user_id,role_id,member_status) values
  ('50000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','40000000-0000-0000-0000-000000000001','active'),
  ('50000000-0000-0000-0000-000000000002','30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000002','40000000-0000-0000-0000-000000000002','active'),
@@ -73,6 +108,25 @@ insert into public.organization_members(id,organization_id,user_id,role_id,membe
 -- T05: removing one of two organization Owners is allowed.
 update public.organization_members set member_status='suspended'
 where id='50000000-0000-0000-0000-000000000001';
+
+-- T05a: the last complete active Owner role cannot lose a required governance permission.
+do $test$
+declare v_blocked boolean := false;
+begin
+  begin
+    delete from public.role_permissions
+    where role_id='40000000-0000-0000-0000-000000000002'
+      and permission_id='a0000000-0000-0000-0000-000000000003';
+  exception when sqlstate '55000' then v_blocked := true;
+  end;
+  if not v_blocked then raise exception 'T05a FAILED: critical permission was removed from the last active Owner role'; end if;
+  if not exists (
+    select 1 from public.role_permissions
+    where role_id='40000000-0000-0000-0000-000000000002'
+      and permission_id='a0000000-0000-0000-0000-000000000003'
+  ) then raise exception 'T05a FAILED: Owner permission mapping disappeared'; end if;
+end;
+$test$;
 
 -- T06: disabling the role that owns the final active Owner is blocked.
 do $test$
@@ -126,12 +180,12 @@ begin
   if (select count(*) from public.platform_admin_roles where role_key='platform_owner' and revoked_at is null and (expires_at is null or expires_at>now())) <> 1 then
     raise exception 'T09 FAILED: expected exactly one active Platform Owner in fixture';
   end if;
-  if (select count(*) from public.organization_members m join public.app_roles r on r.id=m.role_id and r.organization_id=m.organization_id where m.organization_id='30000000-0000-0000-0000-000000000001' and m.member_status='active' and r.role_key='owner' and r.is_active) <> 1 then
+  if (select count(*) from public.organization_members m join public.app_roles r on r.id=m.role_id and r.organization_id=m.organization_id where m.organization_id='30000000-0000-0000-0000-000000000001' and m.member_status='active' and r.role_key='owner' and r.is_active and private.org_owner_role_is_complete_v1(r.organization_id,r.id)) <> 1 then
     raise exception 'T09 FAILED: expected exactly one active organization Owner in fixture';
   end if;
 end;
 $test$;
 
 select 'PASS: Last Active Platform Owner revoke/expiry/demotion guard' as result;
-select 'PASS: Last Active Organization Owner membership/role guard' as result;
+select 'PASS: Last Active Organization Owner membership/role/permission-floor guard' as result;
 select 'PASS: non-owner role/member operations remain available' as result;
