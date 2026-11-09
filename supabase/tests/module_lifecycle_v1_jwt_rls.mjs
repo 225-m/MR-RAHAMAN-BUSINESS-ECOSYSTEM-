@@ -81,7 +81,7 @@ async function restGet(path, token) {
   return body;
 }
 
-async function runRealBranchPreviewBrowser({ requester, approver, applier }) {
+async function runRealBranchPreviewBrowser({ requester, approver, applier, unauthorized }) {
   const require = createRequire(import.meta.url);
   const supabaseEntry = require.resolve("@supabase/supabase-js");
   const sdkPath = path.resolve(path.dirname(supabaseEntry), "../umd/supabase.js");
@@ -126,7 +126,7 @@ async function runRealBranchPreviewBrowser({ requester, approver, applier }) {
       await page.route("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0", route =>
         route.fulfill({ path: sdkPath, contentType: "application/javascript" })
       );
-      const account = actor === "requester" ? requester : actor === "approver" ? approver : applier;
+      const account = actor === "requester" ? requester : actor === "approver" ? approver : actor === "viewer" ? unauthorized : applier;
       const session = {
         access_token: account.token,
         refresh_token: account.refreshToken,
@@ -166,6 +166,14 @@ async function runRealBranchPreviewBrowser({ requester, approver, applier }) {
     await applierUi.page.getByText("Approved module change Apply হয়েছে", { exact: false }).waitFor({ timeout: 15000 });
     await applierUi.page.getByText("active", { exact: true }).waitFor({ timeout: 15000 });
     console.log("PASS: real Branch Preview + separate apply JWT applies approved module change");
+
+    const viewerUi = await openAs("viewer");
+    if (await viewerUi.page.locator("[data-module-request]").count() !== 0 ||
+        await viewerUi.page.locator("[data-module-decision]").count() !== 0 ||
+        await viewerUi.page.locator("[data-module-apply]").count() !== 0) {
+      throw new Error("Real least-privilege viewer UI exposed a Module Lifecycle mutation control");
+    }
+    console.log("PASS: real member with branch.read only sees no Module Lifecycle mutation controls");
 
     const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     contexts.push(mobileContext);
@@ -434,7 +442,7 @@ async function main() {
   await rpc("platform_owner_audit_list_v1", { p_limit: 50 }, platformOwner.token, "denied");
   console.log("PASS: former Platform Owner loses access to platform audit history");
 
-  await runRealBranchPreviewBrowser({ requester, approver, applier });
+  await runRealBranchPreviewBrowser({ requester, approver, applier, unauthorized });
 
   console.log("PASS: local GoTrue JWT + PostgREST + real Branch Preview browser + PostgreSQL RLS suite completed");
 }
