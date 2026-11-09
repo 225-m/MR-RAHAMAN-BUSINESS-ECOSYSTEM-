@@ -84,8 +84,13 @@ async function restGet(path, token) {
 async function runRealBranchPreviewBrowser({ requester, approver, applier, unauthorized }) {
   const require = createRequire(import.meta.url);
   const supabaseEntry = require.resolve("@supabase/supabase-js");
-  const sdkPath = path.resolve(path.dirname(supabaseEntry), "../umd/supabase.js");
-  if (!fs.existsSync(sdkPath)) throw new Error("Supabase browser SDK UMD bundle was not found: " + sdkPath);
+  const sdkCandidates = [
+    path.resolve(path.dirname(supabaseEntry), "umd/supabase.js"),
+    path.resolve(path.dirname(supabaseEntry), "../dist/umd/supabase.js"),
+    path.resolve(path.dirname(supabaseEntry), "../umd/supabase.js")
+  ];
+  const sdkPath = sdkCandidates.find(candidate => fs.existsSync(candidate));
+  if (!sdkPath) throw new Error("Supabase browser SDK UMD bundle was not found; checked: " + sdkCandidates.join(", "));
   const htmlPath = path.resolve("branch-preview/index.html");
   const locationPath = path.resolve("branch-preview/data/bangladesh-admin-hierarchy.json");
   let html = fs.readFileSync(htmlPath, "utf8")
