@@ -162,17 +162,23 @@ const rpc=async(name,args)=>{const {data,error}=await sb.rpc(name,args);if(error
 function esc(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function setGateState(allowed){$("gate").classList.toggle("hidden",allowed);$("workspace").classList.toggle("hidden",!allowed);}
 async function boot(){
- if(!sb){gate("Supabase client লোড হয়নি। ইন্টারনেট সংযোগ যাচাই করুন।","error");return;}
+ if(!sb){setGateState(false);gate("Supabase client লোড হয়নি। ইন্টারনেট সংযোগ যাচাই করুন।","error");return;}
  const {data:{user:u},error}=await sb.auth.getUser();
  if(error||!u){setGateState(false);gate("লগ ইন করা নেই। Authentication Preview থেকে লগ ইন করুন।");$("loginLink").classList.remove("hidden");return;}
  user=u;$("sessionLabel").textContent="Signed in";$("identity").textContent=u.email||u.id;
- if(!u.email_confirmed_at||!u.phone_confirmed_at){setGateState(false);gate("ইমেইল ও মোবাইল—দুটির যাচাই সম্পন্ন না হওয়া পর্যন্ত Branch Module বন্ধ থাকবে।","error");$("logoutBtn").classList.remove("hidden");return;}
- const {data:members,error:memberError}=await sb.from("organizations").select("id,name,status").eq("status","active");
- if(memberError){setGateState(false);gate("Organization access যাচাই করা যায়নি: "+memberError.message,"error");$("logoutBtn").classList.remove("hidden");return;}
- // The organizations SELECT policy calls private.is_org_member(id); this avoids
- // requiring member.read merely to discover the current user's own organizations.
- organizations=(members||[]).map(m=>({organization_id:m.id,organization_name:m.name}));
- if(!organizations.length){setGateState(false);gate("Identity verified, কিন্তু কোনো Active Organization Membership নেই। Owner bootstrap সম্পন্ন না হওয়া পর্যন্ত ব্যবসায়িক ডেটা বন্ধ থাকবে।");$("logoutBtn").classList.remove("hidden");return;}
+ // V1 authentication is email-only. Never require phone_confirmed_at / SMS OTP.
+ if(!u.email_confirmed_at){setGateState(false);gate("ইমেইল যাচাই সম্পন্ন না হওয়া পর্যন্ত Branch Module বন্ধ থাকবে।","error");$("logoutBtn").classList.remove("hidden");return;}
+ // Resolve organization access from the same database-backed authorization context
+ // used by Authentication Preview. UI state is not an authorization boundary:
+ // each branch RPC and RLS policy must independently re-check permissions.
+ const {data:accessData,error:accessError}=await sb.rpc("current_access_context_v1");
+ if(accessError||!accessData||!Array.isArray(accessData.organizations)){
+  setGateState(false);gate("Database authorization যাচাই করা যায়নি। নিরাপত্তার জন্য Branch Module বন্ধ রাখা হয়েছে।","error");$("logoutBtn").classList.remove("hidden");return;
+ }
+ organizations=accessData.organizations
+  .filter(org=>Array.isArray(org.permissions)&&org.permissions.includes("branch.read"))
+  .map(org=>({organization_id:org.organization_id,organization_name:org.organization_name}));
+ if(!organizations.length){setGateState(false);gate("আপনার কোনো Active Organization Membership-এ branch.read Permission পাওয়া যায়নি। Owner/Member access অনুমোদিত না হওয়া পর্যন্ত Branch Module বন্ধ থাকবে।");$("logoutBtn").classList.remove("hidden");return;}
  $("orgSelect").innerHTML=organizations.map(m=>'<option value="'+esc(m.organization_id)+'">'+esc(m.organization_name||"Organization")+' · '+esc(m.organization_id.slice(0,8))+'</option>').join("");
  activeOrg=organizations[0].organization_id;$("orgSelect").value=activeOrg;setGateState(true);await loadBranches();
 }
