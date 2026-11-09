@@ -12,7 +12,7 @@ Scope: read-only readiness review. No Production SQL, settings, users, or data w
 
 The Module Lifecycle disposable PostgreSQL CI passed in GitHub Actions Run #130, but that test is not a Supabase Auth/PostgREST integration test. The repository initially lacked a reproducible migration baseline. I recovered the 14 recorded SQL migration statements read-only from Production's `supabase_migrations.schema_migrations` history and committed them under `supabase/migrations/`; a local-only `supabase/config.toml`, JWT seed fixture, GoTrue/PostgREST test script, and CI job are now added on the feature branch. The connected Supabase account still shows no dedicated cloud staging project; the MR RAHAMAN project has only its default `main` branch. The other listed Supabase project is unrelated and must not be used for this project.
 
-To respect the project's free-tier/no-cost requirement, no Supabase cloud project or development branch was created. The local Supabase CLI stack in CI has now passed real GoTrue JWT/PostgREST/RLS tests. This proves the tested V1 database workflow in an isolated local environment; it does not mean the V1 RPCs are deployed to Production or that a hosted staging environment exists.
+To respect the project's free-tier/no-cost requirement, no Supabase cloud project or development branch was created. The local Supabase CLI stack in CI has passed real GoTrue JWT/PostgREST/RLS tests, including current_access_context_v1 and fail-closed cutover checks. This proves the tested V1 database workflow in an isolated local environment; it does not mean the V1 RPCs are deployed to Production or that a hosted staging environment exists.
 
 ## Checks completed
 
@@ -41,9 +41,9 @@ Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/425426
 - The 14 migration SQL files were recovered from the Production migration-history `statements` arrays and added to `supabase/migrations/` on the feature branch. A keyword scan found no password, secret, service-role key, JWT-secret or API-key assignments in those SQL statements.
 - `supabase/config.toml` now configures an isolated local Supabase stack with Auth enabled and email confirmations disabled only for local tests.
 - A new CI job starts local Supabase, replays the checked-in migrations, applies the Module Lifecycle draft, creates users through local GoTrue, and exercises RPCs through PostgREST using issued access tokens.
-- The local GoTrue JWT/RLS job now passes in GitHub Actions Run #160. It starts an isolated Supabase stack, replays all 14 migrations, creates users through GoTrue, obtains access tokens, and calls the Module Lifecycle RPCs through PostgREST. The first attempt failed only because an obsolete CLI status flag was used; this was corrected to `supabase status -o env`. The local Auth config also uses the current `auth.email.enabled` key.
+- The local GoTrue JWT/RLS job now passes in GitHub Actions Run #249. It starts an isolated Supabase stack, replays all 14 migrations, applies the Module Lifecycle and current_access_context_v1 drafts, creates users through GoTrue, obtains access tokens, verifies caller-scoped access context and permission derivation, then exercises Request → Independent Approval → Apply through PostgREST. It also runs the cutover preflight and fail-closed rollback in the isolated database.
 
-Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42544295546
+Run: https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42548461264
 
 The schema baseline now replays successfully under the local Supabase CLI. GoTrue-issued JWTs exercise the expected PostgREST/RLS controls in CI. The restored migration files are a development/test baseline and were not applied to Production.
 
@@ -112,10 +112,10 @@ The Branch Preview source at branch-preview/index.html now includes an organizat
 
 - Request controls are gated by module.read + module.request.
 - Independent approval controls are gated by approval.read + approval.approve, and the UI hides self-approval.
-- Apply controls are gated by module.read + module.manage and appear only for linked approved requests.
+- Apply controls are gated by module.read + approval.read + module.manage and appear only for linked approved requests.
 - The UI calls only module_request_change_v1, module_approval_decide_v1, and module_apply_approved_change_v1.
 - The UI does not call branch_module_set_enabled and does not directly mutate lifecycle tables.
-- The source passed a local JavaScript parse check, duplicate-ID check, DOM-reference check, and static V1 permission/RPC assertions. GitHub Actions Run #191 passed both the local Supabase GoTrue JWT/RLS job and static validation, including the Owner guard PostgreSQL tests. Playwright Chromium Run #197 also passed: requester self-approval is hidden, a separate approver can approve, a separate apply actor can Apply, unauthorized UI controls stay hidden, and the 390×844 mobile-sized viewport has no horizontal overflow. This is mobile viewport emulation, not a real Android device test.
+- The source passed a local JavaScript parse check, duplicate-ID check, DOM-reference check, and static V1 permission/RPC assertions. GitHub Actions Run #249 passed both jobs. Static validation includes the Playwright Chromium UI test, Owner permission-floor PostgreSQL tests, Owner bootstrap isolation checks, successful cutover/rollback assertions, and a negative preflight test proving missing current_access_context_v1 aborts before legacy grants change. The Playwright test verifies requester self-approval is hidden, a separate approver can approve, a separate apply actor can Apply, unauthorized controls stay hidden, and a 390×844 mobile-sized viewport has no horizontal overflow. This is mobile viewport emulation, not a real Android device test.
 
 Implementation notes: docs/BRANCH_PREVIEW_MODULE_LIFECYCLE_V1.md.
 
@@ -131,11 +131,11 @@ Details: docs/LAST_ACTIVE_OWNER_GUARD_V1.md.
 
 ## Remaining work
 
-1. Verify the updated Owner permission-floor tests in the latest GitHub Actions run; then run real Android Chrome/device smoke tests when a device environment is available.
-2. The Playwright UI smoke test uses a mocked Supabase client, while the separate local GoTrue JWT/PostgREST/RLS suite tests real database RPC authorization. A full browser-to-local-Supabase session integration is still outstanding.
-3. Perform Android-sized viewport and real-device smoke tests when an Android browser/device test environment is available. Do not claim real-device testing from desktop viewport emulation.
-4. Implement and test Last Active Owner protections at the database layer.
-5. Re-review legacy cutover SQL, rollback sequence, client coverage and grants. Keep Production unchanged until a separately approved release.
+1. Confirm the canonical organization Owner role key against the final role catalogue; the current draft uses role_key = owner.
+2. Add audited platform Owner grant/revoke management operations. Current RLS denies direct client DML, but platform role change audit coverage and a reviewed management RPC remain a release gate.
+3. Perform real Android Chrome/device smoke tests. The 390×844 Playwright viewport test is not a physical Android device test.
+4. A full browser-to-local-Supabase session integration is still outstanding: the Playwright UI test uses a mocked client, while the separate local GoTrue JWT/PostgREST/RLS suite verifies real database authorization.
+5. Re-review the final legacy cutover plan against every deployed client and scheduled/Edge Function consumer. Keep Production unchanged until a separately approved release.
 6. Production cutover/deployment remains unauthorized and unapplied.
 
 Production remains unchanged.
