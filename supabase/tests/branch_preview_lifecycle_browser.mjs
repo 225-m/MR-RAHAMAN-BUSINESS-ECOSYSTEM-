@@ -13,7 +13,7 @@ const REQUEST = "80000000-0000-0000-0000-000000000001";
 const APPROVAL = "90000000-0000-0000-0000-000000000001";
 
 const permissions = {
-  requester: ["branch.read", "module.read", "module.request"],
+  requester: ["branch.read", "module.read", "module.request", "approval.read", "approval.approve"],
   approver: ["branch.read", "module.read", "approval.read", "approval.approve"],
   applier: ["branch.read", "module.read", "approval.read", "module.manage"],
   viewer: ["branch.read", "module.read", "approval.read"]
