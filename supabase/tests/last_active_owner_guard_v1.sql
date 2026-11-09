@@ -10,24 +10,32 @@ insert into auth.users(id) values
 
 insert into public.platform_admin_roles(id,user_id,role_key) values
  ('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','platform_owner'),
- ('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002','platform_owner'),
  ('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000003','security_admin');
 
--- T01: one of two platform Owners may be revoked.
-update public.platform_admin_roles set revoked_at=now()
-where id='20000000-0000-0000-0000-000000000001';
+-- T01: the schema enforces exactly one active Platform Owner slot.
+do $test$
+declare v_blocked boolean := false;
+begin
+  begin
+    insert into public.platform_admin_roles(id,user_id,role_key)
+    values('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000002','platform_owner');
+  exception when unique_violation then v_blocked := true;
+  end;
+  if not v_blocked then raise exception 'T01 FAILED: a second active Platform Owner was allowed'; end if;
+end;
+$test$;
 
--- T02: the final active platform Owner cannot be revoked.
+-- T02: the only active Platform Owner cannot be revoked.
 do $test$
 declare v_blocked boolean := false;
 begin
   begin
     update public.platform_admin_roles set revoked_at=now()
-    where id='20000000-0000-0000-0000-000000000002';
+    where id='20000000-0000-0000-0000-000000000001';
   exception when sqlstate '55000' then v_blocked := true;
   end;
   if not v_blocked then raise exception 'T02 FAILED: last Platform Owner revoke was not blocked'; end if;
-  if not exists(select 1 from public.platform_admin_roles where id='20000000-0000-0000-0000-000000000002' and revoked_at is null) then
+  if not exists(select 1 from public.platform_admin_roles where id='20000000-0000-0000-0000-000000000001' and revoked_at is null) then
     raise exception 'T02 FAILED: final Platform Owner row changed despite guard';
   end if;
 end;
@@ -39,12 +47,12 @@ declare v_expiry_blocked boolean := false; v_demote_blocked boolean := false;
 begin
   begin
     update public.platform_admin_roles set expires_at=now()-interval '1 minute'
-    where id='20000000-0000-0000-0000-000000000002';
+    where id='20000000-0000-0000-0000-000000000001';
   exception when sqlstate '55000' then v_expiry_blocked := true;
   end;
   begin
     update public.platform_admin_roles set role_key='platform_admin'
-    where id='20000000-0000-0000-0000-000000000002';
+    where id='20000000-0000-0000-0000-000000000001';
   exception when sqlstate '55000' then v_demote_blocked := true;
   end;
   if not v_expiry_blocked or not v_demote_blocked then
