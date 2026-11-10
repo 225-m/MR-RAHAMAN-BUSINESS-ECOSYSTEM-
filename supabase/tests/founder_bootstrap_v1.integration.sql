@@ -11,6 +11,14 @@ insert into auth.users (
   '{"full_name":"CI Founder Fixture"}'::jsonb
 );
 
+insert into auth.users (
+  id, aud, role, email, encrypted_password, raw_app_meta_data, raw_user_meta_data
+) values (
+  '00000000-0000-4000-8000-000000000226',
+  'authenticated', 'authenticated', 'unverified-fixture@example.test',
+  '', '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb
+);
+
 create or replace function public.test_reject_founder_audit_insert()
 returns trigger language plpgsql as $$
 begin
@@ -24,7 +32,20 @@ before insert on public.platform_audit_logs
 for each row execute function public.test_reject_founder_audit_insert();
 
 select pg_catalog.set_config('request.jwt.claim.role','service_role',false);
-do $$
+
+-- Negative: an Auth identity without email confirmation cannot bootstrap.
+do $
+begin
+  perform public.bootstrap_first_project_founder_main_admin_v1(
+    '00000000-0000-4000-8000-000000000226'
+  );
+  raise exception 'Expected unverified identity rejection';
+exception when insufficient_privilege then
+  if sqlerrm <> 'Allowlisted Auth account missing or email unverified' then raise; end if;
+end;
+$;
+
+do $
 begin
   perform public.bootstrap_first_project_founder_main_admin_v1(
     '00000000-0000-4000-8000-000000000225'
@@ -100,6 +121,19 @@ begin
       where user_id='00000000-0000-4000-8000-000000000225'
         and member_status='active') <> 1 then
     raise exception 'Expected exactly one active organization membership';
+  end if;
+  if (select count(*) from public.permissions) <> 41 then
+    raise exception 'Expected the 41-key permission catalogue';
+  end if;
+  if (select count(*) from public.platform_modules) <> 16 then
+    raise exception 'Expected the 16-module platform catalogue';
+  end if;
+  if exists (
+    select 1 from public.permissions p
+    left join public.platform_modules pm on pm.module_key=p.module_key
+    where p.module_key is null or pm.id is null
+  ) then
+    raise exception 'Permission-to-module mapping contains an orphan key';
   end if;
   if (select count(*) from public.role_permissions rp
       join public.app_roles r on r.id=rp.role_id
