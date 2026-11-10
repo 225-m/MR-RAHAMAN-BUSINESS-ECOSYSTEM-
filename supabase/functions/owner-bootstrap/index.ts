@@ -3,8 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-const ALLOWED_USER_ID = Deno.env.get("OWNER_BOOTSTRAP_ALLOWED_USER_ID") ?? "";
-const ALLOWED_ORIGIN = Deno.env.get("OWNER_BOOTSTRAP_ALLOWED_ORIGIN") ?? "";
+// Set only in Supabase Edge Function secrets after staging review. Never commit the value.\nconst ALLOWED_USER_ID = Deno.env.get("OWNER_BOOTSTRAP_ALLOWED_USER_ID") ?? "";
+// Exact trusted browser origin; no wildcard CORS. Never commit the value.\nconst ALLOWED_ORIGIN = Deno.env.get("OWNER_BOOTSTRAP_ALLOWED_ORIGIN") ?? "";
 
 function responseHeaders(origin: string) {
   return {
@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Not authorized for first-owner bootstrap" }), { status: 403, headers });
 
     const admin = createClient(URL, SERVICE, { auth: { persistSession: false, autoRefreshToken: false } });
-    const { data, error } = await admin.rpc("bootstrap_first_platform_owner_v2", { p_expected_user_id: ALLOWED_USER_ID });
+    const { data, error } = await admin.rpc("bootstrap_first_project_founder_main_admin_v1", { p_expected_user_id: ALLOWED_USER_ID });
     if (error) return new Response(JSON.stringify({ error: "Bootstrap preconditions failed" }), { status: 409, headers });
     return new Response(JSON.stringify(data), { status: 200, headers });
   } catch {
