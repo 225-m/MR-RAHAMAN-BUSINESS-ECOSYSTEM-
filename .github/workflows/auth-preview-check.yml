@@ -1,25 +1,97 @@
-name: Authentication Preview Checks
+name: MR RAHAMAN Security & Preview Checks
 
 on:
   push:
     branches:
       - feature/branch-module-v1
     paths:
+      - 'index.html'
+      - 'assets/brand/**'
       - 'auth-preview/**'
+      - 'branch-preview/**'
+      - 'docs/**'
+      - 'supabase/drafts/**'
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+      - 'supabase/tests/**'
+      - 'supabase/functions/auth-preview/index.ts'
       - '.github/workflows/auth-preview-check.yml'
   pull_request:
     branches:
       - main
+      - feature/branch-module-v1
     paths:
+      - 'index.html'
+      - 'assets/brand/**'
       - 'auth-preview/**'
+      - 'branch-preview/**'
+      - 'docs/**'
+      - 'supabase/drafts/**'
+      - 'supabase/migrations/**'
+      - 'supabase/config.toml'
+      - 'supabase/tests/**'
+      - 'supabase/functions/auth-preview/index.ts'
       - '.github/workflows/auth-preview-check.yml'
 
 permissions:
   contents: read
 
 jobs:
+  local-supabase-jwt-rls:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install real-browser test dependencies
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1 @supabase/supabase-js@2.118.0
+          npx playwright install --with-deps chromium
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+      - name: Start isolated local Supabase services
+        run: supabase start --exclude studio,storage,realtime,functions,analytics,mail
+      - name: Replay checked-in schema and run GoTrue JWT/RLS integration
+        run: |
+          supabase db reset --local
+          supabase status -o env > .env.local
+          set -a
+          source .env.local
+          set +a
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/current_access_context_v1.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/last_active_owner_guard_v1.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/platform_owner_management_v1.sql
+          node supabase/tests/module_lifecycle_v1_jwt_rls.mjs
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_cutover.sql
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_fail_closed_rollback.sql
+      - name: Stop isolated local Supabase services
+        if: always()
+        run: supabase stop --no-backup
+
   static-auth-check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,12 +99,116 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Install Playwright Chromium
+        run: |
+          npm init -y
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Browser and mobile viewport Module Lifecycle smoke tests
+        run: node supabase/tests/branch_preview_lifecycle_browser.mjs
+      - name: Test Customer Access SQL in disposable PostgreSQL
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/customer_access_test_schema.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_access_v1.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1.integration.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_service_admin_settings_v1.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_service_admin_settings_v1.integration.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_service_admin_settings_v1_rollback.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_service_admin_settings_v1_rollback.integration.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/drafts/customer_access_v1_rollback.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/customer_access_v1_rollback.integration.sql
+      - name: Test Module Lifecycle V1 RPCs in disposable PostgreSQL
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          createdb module_lifecycle_test
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/module_lifecycle_v1_schema.sql
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1.sql
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/last_active_owner_guard_v1.sql
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/platform_owner_management_v1.sql
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/current_access_context_v1.sql
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 \
+            -v org_id='00000000-0000-0000-0000-000000000001' \
+            -v requester_id='00000000-0000-0000-0000-000000000101' \
+            -v approver_id='00000000-0000-0000-0000-000000000102' \
+            -v apply_id='00000000-0000-0000-0000-000000000103' \
+            -v unauthorized_id='00000000-0000-0000-0000-000000000104' \
+            -v module_key='test_sales_module' \
+            -v request_type='disable' \
+            -f supabase/tests/module_lifecycle_v1.sql
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_cutover.sql
+          psql -d module_lifecycle_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_fail_closed_rollback.sql
+
+      - name: Verify legacy cutover fails safely when access context is missing
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          createdb module_lifecycle_preflight_fail_test
+          psql -d module_lifecycle_preflight_fail_test -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/module_lifecycle_v1_schema.sql
+          psql -d module_lifecycle_preflight_fail_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1.sql
+          if psql -d module_lifecycle_preflight_fail_test -v ON_ERROR_STOP=1 -f supabase/drafts/module_lifecycle_v1_cutover.sql; then
+            echo "Cutover unexpectedly succeeded without current_access_context_v1"
+            exit 1
+          fi
+          grants="$(psql -d module_lifecycle_preflight_fail_test -At -c "select has_function_privilege('authenticated','public.branch_module_set_enabled(uuid,boolean,text)','EXECUTE')::text || '|' || has_function_privilege('authenticated','private.branch_module_set_enabled(uuid,boolean,text)','EXECUTE')::text")"
+          if [ "$grants" != "true|true" ]; then
+            echo "Legacy grants changed despite failed preflight: $grants"
+            exit 1
+          fi
+          echo "PASS: missing access context aborts cutover and preserves prior grants"
+
+      - name: Test Last Active Owner guards in disposable PostgreSQL
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          createdb last_active_owner_guard_test
+          psql -d last_active_owner_guard_test -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/last_active_owner_guard_v1_schema.sql
+          psql -d last_active_owner_guard_test -v ON_ERROR_STOP=1 -f supabase/drafts/last_active_owner_guard_v1.sql
+          psql -d last_active_owner_guard_test -v ON_ERROR_STOP=1 -f supabase/tests/last_active_owner_guard_v1.sql
+      - name: Test audited Platform Owner management in disposable PostgreSQL
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: postgres
+          PGDATABASE: postgres
+        run: |
+          createdb platform_owner_management_test
+          psql -d platform_owner_management_test -v ON_ERROR_STOP=1 -f supabase/tests/fixtures/last_active_owner_guard_v1_schema.sql
+          psql -d platform_owner_management_test -v ON_ERROR_STOP=1 -f supabase/drafts/last_active_owner_guard_v1.sql
+          psql -d platform_owner_management_test -v ON_ERROR_STOP=1 -f supabase/drafts/platform_owner_management_v1.sql
+          psql -d platform_owner_management_test -v ON_ERROR_STOP=1 -f supabase/tests/platform_owner_management_v1.sql
+
       - name: Validate authentication preview
         run: |
           node <<'NODE'
           const fs = require('node:fs');
           const vm = require('node:vm');
           const html = fs.readFileSync('auth-preview/index.html', 'utf8');
+          const logoPath = 'assets/brand/mr-rahaman-business-ecosystem.svg';
+          if (!fs.existsSync(logoPath)) throw new Error('Brand logo asset missing: ' + logoPath);
+          const logoUrl = 'https://raw.githubusercontent.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/main/' + logoPath;
+          if (!html.includes(logoUrl)) throw new Error('Authentication preview does not reference the canonical brand logo');
           const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
             .map(match => match[1]).filter(Boolean);
           if (!scripts.length) throw new Error('No inline application script found');
@@ -49,12 +225,132 @@ jobs:
           const phoneOtp = /phoneVerifyPane|sendPhoneOtpBtn|verifyPhoneOtpBtn|phoneOtp|phone_pending|phone_confirmed_at|normalizeBDPhone|regPhone|মোবাইল OTP/i;
           if (phoneOtp.test(html)) throw new Error('Phone OTP flow must remain removed');
 
-          for (const required of ['signInWithPassword', 'signUp(', 'resetPasswordForEmail', 'current_access_context_v1', 'dashboard.read', 'is_platform_owner']) {
+          for (const required of ['signInWithPassword', 'signUp(', 'resetPasswordForEmail', 'current_access_context_v1', 'dashboard.read', 'is_platform_owner', 'is_customer', 'customerView', 'customer_profiles', 'customerAvatarInput', 'uploadCustomerAvatarBtn', 'removeCustomerAvatarBtn', 'customer-avatars', 'createSignedUrl', 'AVATAR_MAX_BYTES', 'normalizeCustomerAvatar']) {
             if (!html.includes(required)) throw new Error('Required auth/access feature missing: ' + required);
           }
 
           if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
             throw new Error('Server secret detected in browser source');
           }
-          console.log('PASS: JavaScript syntax, unique DOM IDs, DOM references, email-only auth, database gate, and no browser secrets.');
+          const serviceSettingsSql = fs.readFileSync('supabase/drafts/customer_service_admin_settings_v1.sql', 'utf8');
+          const serviceSettingsTest = fs.readFileSync('supabase/tests/customer_service_admin_settings_v1.integration.sql', 'utf8');
+          const serviceSettingsDoc = fs.readFileSync('docs/CUSTOMER_SERVICE_ADMIN_SETTINGS_V1.md', 'utf8');
+          for (const required of ['customer_verification.master', 'customer_verification.phone_otp', 'customer_verification.nid', 'customer_verification.passport', 'customer_verification.biometric', 'customer_verification.ai_review', 'customer_payment.card_payments', 'ready_to_enable', 'platform_admin_roles', 'customer_service_feature_audit', 'security invoker', 'security definer']) {
+            if (!serviceSettingsSql.toLowerCase().includes(required.toLowerCase())) throw new Error('Customer service settings control missing: ' + required);
+          }
+          for (const required of ['master-off', 'append-only', 'payment', 'readiness', 'expired']) {
+            if (!serviceSettingsTest.toLowerCase().includes(required.toLowerCase())) throw new Error('Customer service settings test coverage missing: ' + required);
+          }
+          if (!serviceSettingsDoc.includes('No direct browser grants') || !serviceSettingsDoc.includes('OFF')) throw new Error('Customer service settings architecture contract incomplete');
+
+          const customerSql = fs.readFileSync('supabase/drafts/customer_access_v1.sql', 'utf8');
+          for (const required of ['enable row level security', 'customer_profiles_select_own', 'customer_profiles_update_own', 'customer_profiles_avatar_path_own', 'customer_avatars_select_own', 'customer_avatars_insert_own', 'customer_avatars_update_own', 'customer_avatars_delete_own', 'customer-avatars', '5242880', 'auth.uid()', 'security invoker', 'is_customer']) {
+            if (!customerSql.toLowerCase().includes(required.toLowerCase())) throw new Error('Customer SQL security control missing: ' + required);
+          }
+          if (/grant\s+all\s+on\s+table\s+public\.customer_profiles\s+to\s+(anon|authenticated)/i.test(customerSql)) {
+            throw new Error('Broad customer profile grant detected');
+          }
+          if (!/using\s*\(\s*\(select\s+auth\.uid\(\)\)\s*=\s*user_id\s*\)/i.test(customerSql)) {
+            throw new Error('Customer profile ownership predicate missing');
+          }
+          const edge = fs.readFileSync('supabase/functions/auth-preview/index.ts', 'utf8');
+          const embeddedStart = edge.indexOf('const html = ') + 'const html = '.length;
+          const handlerStart = edge.indexOf('Deno.serve', embeddedStart);
+          const embeddedEnd = edge.lastIndexOf(';', handlerStart);
+          if (embeddedStart < 'const html = '.length || embeddedEnd < 0) throw new Error('Could not read embedded Edge Function HTML');
+          const embeddedHtml = JSON.parse(edge.slice(embeddedStart, embeddedEnd));
+          if (embeddedHtml !== html) throw new Error('Edge Function HTML is out of sync with auth-preview/index.html');
+          if (!edge.includes('Customer Dashboard') || !edge.includes('is_customer') || !edge.includes('customerAvatarInput') || !edge.includes('customer-avatars')) throw new Error('Edge Function is missing Customer avatar UI');
+          console.log('PASS: JavaScript syntax, unique DOM IDs, DOM references, email-only auth, database gate, customer RLS draft, Edge Function sync, and no browser secrets.');
+          NODE
+
+      - name: Validate Branch Module preview and Bangladesh location dataset
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const vm = require('node:vm');
+          const html = fs.readFileSync('branch-preview/index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+            .map(match => match[1]).filter(Boolean);
+          if (!scripts.length) throw new Error('No Branch Module application script found');
+          for (const script of scripts) new vm.Script(script);
+
+          const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(match => match[1]);
+          const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+          if (duplicates.length) throw new Error('Duplicate Branch DOM IDs: ' + [...new Set(duplicates)].join(', '));
+          const references = [...html.matchAll(/\$\(["']([^"']+)["']\)/g)].map(match => match[1]);
+          const missing = [...new Set(references.filter(id => !ids.includes(id)))];
+          if (missing.length) throw new Error('Missing Branch DOM IDs: ' + missing.join(', '));
+
+          if (!html.includes('https://pojhrvmuamdejlutxpng.supabase.co')) throw new Error('Wrong Supabase project URL');
+          if (!html.includes('current_access_context_v1') || !html.includes('branch.read')) {
+            throw new Error('Branch authorization must use the database access context and branch.read');
+          }
+          if (/!\s*u\.email_confirmed_at\s*\|\|\s*!\s*u\.phone_confirmed_at/.test(html)) {
+            throw new Error('Branch Module must not require phone verification in email-only v1');
+          }
+          for (const required of ['branch_list_v1', 'branch_create', 'branch_update', 'branch_set_status', 'branch_detail_v1', 'branch_upsert_profile', 'branch_add_contact', 'branch_set_operating_hours', 'branch_set_setting', 'branch_audit_list_v1', 'branch_assign_member_access', 'branch_revoke_member_access']) {
+            if (!html.includes(required)) throw new Error('Branch RPC/UI integration missing: ' + required);
+          }
+
+          for (const required of ['module_request_change_v1', 'module_approval_decide_v1', 'module_apply_approved_change_v1', 'moduleLifecycle', 'module.request', 'approval.approve', 'module.manage', 'approval.read', 'Request → Independent Approval → Apply']) {
+            if (!html.includes(required)) throw new Error('Module Lifecycle UI/RPC integration missing: ' + required);
+          }
+          for (const rpc of ['module_request_change_v1', 'module_approval_decide_v1', 'module_apply_approved_change_v1']) {
+            if (!html.includes('rpc("' + rpc + '"') && !html.includes("rpc('" + rpc + "'")) {
+              throw new Error('Branch Preview must invoke the V1 public RPC: ' + rpc);
+            }
+          }
+          if (html.includes('branch_module_set_enabled')) {
+            throw new Error('Legacy module enable/disable RPC must not be called by Branch Preview');
+          }
+          for (const forbidden of ['from("organization_modules").insert', 'from("organization_modules").update', 'from("organization_modules").upsert', 'from("organization_modules").delete']) {
+            if (html.includes(forbidden)) throw new Error('Branch Preview must not mutate organization_modules directly');
+          }
+          if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
+            throw new Error('Server secret detected in Branch browser source');
+          }
+
+          const landing = fs.readFileSync('index.html', 'utf8');
+          if (!landing.includes('assets/brand/mr-rahaman-business-ecosystem.svg') ||
+              !landing.includes('href="auth-preview/"') ||
+              !landing.includes('Development Preview')) {
+            throw new Error('Landing page must use the canonical logo, link to Authentication Preview, and disclose preview status');
+          }
+
+          const location = JSON.parse(fs.readFileSync('branch-preview/data/bangladesh-admin-hierarchy.json', 'utf8'));
+          const divisions = location.data || [];
+          const districts = divisions.reduce((n, item) => n + (item.district || []).length, 0);
+          const upazilas = divisions.reduce((n, item) => n + (item.district || []).reduce((m, district) => m + (district.upazila || []).length, 0), 0);
+          if (divisions.length !== 8 || districts !== 64 || upazilas !== 495) {
+            throw new Error('Unexpected Bangladesh location dataset counts: ' + [divisions.length, districts, upazilas].join('/'));
+          }
+
+          const branchSql = fs.readFileSync('branch-preview/migrations/branch-target-finance-draft.sql', 'utf8');
+          if (!branchSql.includes('DRAFT ONLY') || !/rollback;\s*$/i.test(branchSql.trim())) {
+            throw new Error('Branch target/finance SQL must remain an unapplied rollback-only draft');
+          }
+          console.log('PASS: Branch JS syntax, DOM references, email-only access gate, branch RPC integration, browser secret scan, location dataset, and draft SQL safety.');
+          NODE
+
+      - name: Validate one-time Owner bootstrap isolation
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const edge = fs.readFileSync('supabase/functions/owner-bootstrap/index.ts', 'utf8');
+          const v2 = fs.readFileSync('supabase/drafts/first_platform_owner_bootstrap_v2.sql', 'utf8');
+          const v1 = fs.readFileSync('supabase/drafts/owner_bootstrap_v1_DO_NOT_APPLY.sql', 'utf8');
+          const uuidLiteral = /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i;
+          if (uuidLiteral.test(edge) || uuidLiteral.test(v2)) throw new Error('Bootstrap allowlisted subject must not be hardcoded in current source');
+          for (const required of ['OWNER_BOOTSTRAP_ALLOWED_USER_ID', 'OWNER_BOOTSTRAP_ALLOWED_ORIGIN', 'getUser(token)', 'email_confirmed_at', 'bootstrap_first_platform_owner_v2']) {
+            if (!edge.includes(required)) throw new Error('Owner bootstrap Edge Function guard missing: ' + required);
+          }
+          for (const required of ["request.jwt.claim.role", 'service_role required', 'p_expected_user_id', '41', 'core_module_count', 'pg_advisory_xact_lock', 'INITIAL_PLATFORM_OWNER_BOOTSTRAP_COMPLETED', 'platform_audit_logs', 'platform_owner.granted']) {
+            if (!v2.includes(required)) throw new Error('Owner bootstrap SQL guard missing: ' + required);
+          }
+          if (/create\s+or\s+replace\s+function/i.test(v1)) throw new Error('Retired Owner bootstrap v1 must remain non-executable');
+          if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(edge)) {
+            throw new Error('Service-role secret detected in Owner bootstrap source');
+          }
+          console.log('PASS: owner bootstrap subject/origin are environment allowlisted, RPC is service_role-only, v1 is retired, and no browser/server secret is hardcoded.');
           NODE

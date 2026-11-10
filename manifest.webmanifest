@@ -1,0 +1,18 @@
+{
+  "id": "./",
+  "name": "MR RAHAMAN Business Ecosystem",
+  "short_name": "MR RAHAMAN",
+  "description": "A modular business ecosystem for organizations, branches and teams.",
+  "lang": "bn",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f3f6fa",
+  "theme_color": "#102a43",
+  "icons": [
+    {"src": "icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any"},
+    {"src": "icons/icon-512.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any"}
+  ]
+}

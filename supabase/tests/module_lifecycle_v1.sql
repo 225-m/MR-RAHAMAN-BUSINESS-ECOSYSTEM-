@@ -1,0 +1,428 @@
+-- MR RAHAMAN Business Ecosystem
+-- Module Lifecycle V1 integration test harness — staging only.
+-- Run with psql against a disposable Supabase project after provisioning fixtures:
+-- psql "$STAGING_DB_URL" -v org_id='<uuid>' -v requester_id='<uuid>' \
+--   -v approver_id='<uuid>' -v apply_id='<uuid>' -v unauthorized_id='<uuid>' \
+--   -v module_key='<non-core-key>' -v request_type='disable' \
+--   -f supabase/tests/module_lifecycle_v1.sql
+--
+-- Fixture requirements:
+-- * Four active members in one active organization.
+-- * Requester: module.request + approval.approve (self-approval still forbidden).
+-- * Approver: approval.approve, different from requester.
+-- * Apply actor: module.manage + module.read.
+-- * Unauthorized actor: no approval.approve.
+-- * Disable test: target is active, non-core, with no active mandatory dependents.
+--   Enable test: target is disabled and all mandatory dependencies are active.
+-- * No unresolved request exists for the target module.
+-- The test transaction is rolled back. Never run against Production.
+
+begin;
+set local role authenticated;
+
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'requester_id')::text, true);
+select set_config('request.jwt.claim.sub', :'requester_id', true);
+select set_config('test.org_id', :'org_id', true);
+select set_config('test.requester_id', :'requester_id', true);
+select set_config('test.approver_id', :'approver_id', true);
+select set_config('test.apply_id', :'apply_id', true);
+select set_config('test.module_key', :'module_key', true);
+select set_config('test.request_type', :'request_type', true);
+select set_config('test.expected_status', case when :'request_type' = 'disable' then 'disabled' else 'active' end, true);
+select set_config('test.approval_id', '', true);
+select set_config('test.change_id', '', true);
+
+-- T00: API callers must not invoke private SECURITY DEFINER implementations directly.
+do $test$
+begin
+  if pg_catalog.has_function_privilege('authenticated',
+       'private.module_request_change_v1(uuid,text,text,text)', 'EXECUTE')
+     or pg_catalog.has_function_privilege('authenticated',
+       'private.module_approval_decide_v1(uuid,uuid,text,text)', 'EXECUTE')
+     or pg_catalog.has_function_privilege('authenticated',
+       'private.module_apply_approved_change_v1(uuid,uuid)', 'EXECUTE') then
+    raise exception 'T00 FAILED: authenticated can execute a private lifecycle implementation';
+  end if;
+  if not pg_catalog.has_function_privilege('authenticated',
+       'public.module_request_change_v1(uuid,text,text,text)', 'EXECUTE')
+     or not pg_catalog.has_function_privilege('authenticated',
+       'public.module_approval_decide_v1(uuid,uuid,text,text)', 'EXECUTE')
+     or not pg_catalog.has_function_privilege('authenticated',
+       'public.module_apply_approved_change_v1(uuid,uuid)', 'EXECUTE') then
+    raise exception 'T00 FAILED: authenticated lifecycle wrapper grants are missing';
+  end if;
+end;
+$test$;
+
+-- T01: create exactly one request and capture both identifiers.
+select
+  (r.result->>'module_change_request_id')::uuid as change_id,
+  (r.result->>'approval_request_id')::uuid as approval_id
+from (
+  select public.module_request_change_v1(
+    :'org_id'::uuid, :'module_key', :'request_type',
+    'Automated Module Lifecycle V1 integration test'
+  ) as result
+) r
+\gset
+
+-- T02: requester cannot approve own request, even with approval.approve.
+select set_config('test.approval_id', :'approval_id', true);
+select set_config('test.change_id', :'change_id', true);
+
+do $test$
+begin
+  begin
+    perform public.module_approval_decide_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.approval_id')::uuid, 'approved', 'self approval attempt'
+    );
+    raise exception 'T02 FAILED: requester self-approved';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end;
+$test$;
+
+-- T03: user without approval.approve cannot decide.
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'unauthorized_id')::text, true);
+select set_config('request.jwt.claim.sub', :'unauthorized_id', true);
+
+do $test$
+begin
+  begin
+    perform public.module_approval_decide_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.approval_id')::uuid, 'approved', 'unauthorized attempt'
+    );
+    raise exception 'T03 FAILED: unauthorized user approved';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end;
+$test$;
+
+-- T03b: a user without module.request cannot create a request.
+do $test$
+begin
+  begin
+    perform public.module_request_change_v1(
+      current_setting('test.org_id')::uuid,
+      current_setting('test.module_key'),
+      current_setting('test.request_type'),
+      'Unauthorized request attempt'
+    );
+    raise exception 'T03b FAILED: unauthorized user created a module request';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end;
+$test$;
+
+-- T04: Apply is rejected while the request is still pending.
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T04 FAILED: pending request was applied';
+  exception when sqlstate '55000' then
+    null;
+  end;
+end;
+$test$;
+
+-- T05: a different authorized member approves.
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'approver_id')::text, true);
+select set_config('request.jwt.claim.sub', :'approver_id', true);
+
+select public.module_approval_decide_v1(
+  :'org_id'::uuid, :'approval_id'::uuid, 'approved', 'independent approval'
+);
+
+-- T05b: an approver without module.manage cannot apply the approved request.
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T05b FAILED: approver applied without module.manage';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end;
+$test$;
+
+-- T05c: approval must be revalidated at apply time if the approver's role grant is revoked.
+reset role;
+delete from public.role_permissions
+where role_id = '00000000-0000-0000-0000-000000000202'::uuid
+  and permission_id = '00000000-0000-0000-0000-000000000402'::uuid;
+set local role authenticated;
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T05c FAILED: apply accepted approval after approver permission was revoked';
+  exception when sqlstate '42501' then
+    null;
+  end;
+end;
+$test$;
+
+reset role;
+insert into public.role_permissions(id,organization_id,role_id,permission_id)
+values (
+  '00000000-0000-0000-0000-000000000507'::uuid,
+  '00000000-0000-0000-0000-000000000001'::uuid,
+  '00000000-0000-0000-0000-000000000202'::uuid,
+  '00000000-0000-0000-0000-000000000402'::uuid
+);
+set local role authenticated;
+
+-- T06: separately authorized apply actor executes the approved change.
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+
+select public.module_apply_approved_change_v1(
+  :'org_id'::uuid, :'change_id'::uuid
+);
+
+-- T07: a second application is rejected (idempotency / no replay).
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T07 FAILED: completed request applied twice';
+  exception when sqlstate '55000' then
+    null;
+  end;
+end;
+$test$;
+
+-- T08: confirm completed request and audit chain are present as the DB test owner.
+reset role;
+do $test$
+declare
+  v_status text;
+  v_action_count integer;
+  v_audit_count integer;
+begin
+  select status into v_status
+  from public.module_change_requests
+  where id = current_setting('test.change_id')::uuid and organization_id = current_setting('test.org_id')::uuid;
+
+  if v_status <> 'completed' then
+    raise exception 'T08 FAILED: expected completed status, got %', v_status;
+  end if;
+
+  if not exists (
+    select 1 from public.organization_modules
+    where organization_id = current_setting('test.org_id')::uuid
+      and module_id = '00000000-0000-0000-0000-000000000301'::uuid
+      and status = current_setting('test.expected_status')
+  ) then
+    raise exception 'T08 FAILED: module state did not match approved request';
+  end if;
+
+  if pg_catalog.has_table_privilege('authenticated','public.organization_modules','INSERT')
+     or pg_catalog.has_table_privilege('authenticated','public.organization_modules','UPDATE')
+     or pg_catalog.has_table_privilege('authenticated','public.organization_modules','DELETE') then
+    raise exception 'T08 FAILED: authenticated direct module table mutation is granted';
+  end if;
+
+  select count(*) into v_action_count
+  from public.approval_actions
+  where approval_request_id = current_setting('test.approval_id')::uuid
+    and organization_id = current_setting('test.org_id')::uuid
+    and decision = 'approved'
+    and actor_user_id = current_setting('test.approver_id')::uuid;
+
+  if v_action_count <> 1 then
+    raise exception 'T08 FAILED: independent approval action missing or duplicated';
+  end if;
+
+  select count(*) into v_audit_count
+  from public.module_audit_logs
+  where approval_request_id = current_setting('test.approval_id')::uuid
+    and organization_id = current_setting('test.org_id')::uuid
+    and action in ('MODULE_CHANGE_REQUESTED','MODULE_CHANGE_APPROVED',
+                   'MODULE_ENABLED_AFTER_APPROVAL','MODULE_DISABLED_AFTER_APPROVAL');
+
+  if v_audit_count <> 3 then
+    raise exception 'T08 FAILED: expected request, approval and apply audit events; found %', v_audit_count;
+  end if;
+end;
+$test$;
+
+-- T09: mandatory dependency blocks enable; applying succeeds only after dependency activation.
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'requester_id')::text, true);
+select set_config('request.jwt.claim.sub', :'requester_id', true);
+select
+  (r.result->>'module_change_request_id')::uuid as dependency_change_id,
+  (r.result->>'approval_request_id')::uuid as dependency_approval_id
+from (
+  select public.module_request_change_v1(
+    :'org_id'::uuid, :'module_key', 'enable',
+    'Enable request requiring dependency'
+  ) as result
+) r
+\gset
+
+select set_config('test.change_id', :'dependency_change_id', true);
+select set_config('test.approval_id', :'dependency_approval_id', true);
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'approver_id')::text, true);
+select set_config('request.jwt.claim.sub', :'approver_id', true);
+select public.module_approval_decide_v1(
+  :'org_id'::uuid, :'dependency_approval_id'::uuid, 'approved', 'dependency test approval'
+);
+
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T09 FAILED: module enabled while mandatory dependency was inactive';
+  exception when sqlstate '55000' then
+    null;
+  end;
+end;
+$test$;
+
+reset role;
+do $test$
+begin
+  if not exists (
+    select 1 from public.organization_modules
+    where organization_id = current_setting('test.org_id')::uuid
+      and module_id = '00000000-0000-0000-0000-000000000301'::uuid
+      and status = 'disabled'
+  ) then
+    raise exception 'T09 FAILED: blocked dependency attempt changed module state';
+  end if;
+end;
+$test$;
+
+insert into public.organization_modules(
+  id, organization_id, module_id, status, installed_version,
+  configuration, enabled_at, enabled_by, updated_at
+) values (
+  '00000000-0000-0000-0000-000000000312'::uuid,
+  :'org_id'::uuid,
+  '00000000-0000-0000-0000-000000000302'::uuid,
+  'active', '1.0.0', '{}'::jsonb, pg_catalog.now(), :'apply_id'::uuid, pg_catalog.now()
+);
+
+set local role authenticated;
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+select public.module_apply_approved_change_v1(
+  :'org_id'::uuid, :'dependency_change_id'::uuid
+);
+
+-- T10: rejected module change cannot be applied.
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'requester_id')::text, true);
+select set_config('request.jwt.claim.sub', :'requester_id', true);
+select
+  (r.result->>'module_change_request_id')::uuid as rejected_change_id,
+  (r.result->>'approval_request_id')::uuid as rejected_approval_id
+from (
+  select public.module_request_change_v1(
+    :'org_id'::uuid, :'module_key', 'disable',
+    'Request disable for rejection test'
+  ) as result
+) r
+\gset
+
+select set_config('test.change_id', :'rejected_change_id', true);
+select set_config('test.approval_id', :'rejected_approval_id', true);
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'approver_id')::text, true);
+select set_config('request.jwt.claim.sub', :'approver_id', true);
+select public.module_approval_decide_v1(
+  :'org_id'::uuid, :'rejected_approval_id'::uuid, 'rejected', 'rejected in automated test'
+);
+
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'apply_id')::text, true);
+select set_config('request.jwt.claim.sub', :'apply_id', true);
+do $test$
+begin
+  begin
+    perform public.module_apply_approved_change_v1(
+      current_setting('test.org_id')::uuid, current_setting('test.change_id')::uuid
+    );
+    raise exception 'T10 FAILED: rejected module change was applied';
+  exception when sqlstate '55000' then
+    null;
+  end;
+end;
+$test$;
+
+-- T11: expired pending approval cannot be decided.
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'requester_id')::text, true);
+select set_config('request.jwt.claim.sub', :'requester_id', true);
+select
+  (r.result->>'module_change_request_id')::uuid as expired_change_id,
+  (r.result->>'approval_request_id')::uuid as expired_approval_id
+from (
+  select public.module_request_change_v1(
+    :'org_id'::uuid, :'module_key', 'disable',
+    'Request disable for expiry test'
+  ) as result
+) r
+\gset
+
+reset role;
+update public.approval_requests
+set expires_at = pg_catalog.now() - interval '1 second'
+where id = :'expired_approval_id'::uuid
+  and organization_id = :'org_id'::uuid;
+set local role authenticated;
+select set_config('test.approval_id', :'expired_approval_id', true);
+select set_config('request.jwt.claims',
+  pg_catalog.jsonb_build_object('role','authenticated','sub', :'approver_id')::text, true);
+select set_config('request.jwt.claim.sub', :'approver_id', true);
+do $test$
+begin
+  begin
+    perform public.module_approval_decide_v1(
+      current_setting('test.org_id')::uuid,
+      current_setting('test.approval_id')::uuid,
+      'approved',
+      'expired approval test'
+    );
+    raise exception 'T11 FAILED: expired approval was decided';
+  exception when sqlstate '55000' then
+    null;
+  end;
+end;
+$test$;
+
+rollback;

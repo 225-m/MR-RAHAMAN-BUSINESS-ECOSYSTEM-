@@ -1,0 +1,56 @@
+# Branch Preview — Module Lifecycle V1 UI
+
+Project: MR RAHAMAN Business Ecosystem  
+Branch: `feature/customer-access-v1`  
+Status: Preview source integration only; no Production deployment.
+
+## User flow
+
+Branch Preview now exposes an organization-scoped Module Lifecycle area:
+
+1. **Request** — a member with `module.read` and `module.request` can request enable/disable for a non-core module. A reason is required.
+2. **Independent Approval** — a different active member with `approval.approve` can approve or reject. The requester is not shown an approval action for their own request.
+3. **Apply** — the UI requires `approval.read` to inspect the linked decision and `module.manage` to show Apply; the database RPC independently rechecks `module.manage` and the approved linkage.
+
+The UI calls only these public RPCs:
+
+- `module_request_change_v1`
+- `module_approval_decide_v1`
+- `module_apply_approved_change_v1`
+
+No direct writes are made to `organization_modules`, `module_change_requests`, or `approval_requests`. The legacy `branch_module_set_enabled` RPC is not called anywhere in the Branch Preview source.
+
+## Permission and read model
+
+- `platform_modules` is read through its authenticated active-catalog SELECT policy.
+- Current module state and change history require `module.read`.
+- Approval status/history requires `approval.read`.
+- Request, decision, and apply controls are independently gated in the UI by `module.request`, `approval.approve`, and `module.manage`.
+- These UI gates are only usability controls. Every mutation is re-authorized inside the V1 database RPC.
+- If the V1 RPCs are not deployed, the UI reports the RPC error and does not fall back to the legacy RPC.
+
+## Test coverage added
+
+The Branch Preview CI validation now checks:
+
+- JavaScript syntax, unique DOM IDs, and referenced DOM IDs.
+- Presence of all three V1 RPC calls and all four lifecycle permissions.
+- Absence of the legacy module toggle RPC.
+- No direct mutation methods against `organization_modules`.
+- Existing Branch Preview authentication and branch RPC checks remain enabled.
+
+## Deployment boundary
+
+This commit is on the feature branch only. It does not publish GitHub Pages, deploy the Edge Function, apply SQL to Supabase Production, or revoke legacy RPC grants. Production still needs a coordinated V1 database deployment and client cutover after isolated tests and Owner safeguards pass.
+
+## Browser smoke test
+
+GitHub Actions Run #197 passed the Playwright Chromium UI smoke suite. The suite exercises a mocked organization session and verifies:
+
+- A requester can submit a request but cannot approve their own request.
+- A separate approver can approve and cannot Apply without module.manage.
+- A separate actor with module.manage can Apply an approved request.
+- A viewer without the relevant permissions sees no Request, Approve/Reject, or Apply controls.
+- A 390×844 mobile-sized Chromium viewport renders the panel without horizontal overflow.
+
+The CI suite now has two browser layers: a mocked Playwright role/viewport test, plus a real Branch Preview UI test wired to isolated local Supabase using GoTrue-issued JWT sessions. Both passed in [GitHub Actions Run #299](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42559010963). The real UI test covers requester → independent approver → separate applier, branch.read-only viewer, and a 390×844 viewport. Neither test touches Production. This is not a real Android device test; Android Chrome/device smoke testing remains outstanding.

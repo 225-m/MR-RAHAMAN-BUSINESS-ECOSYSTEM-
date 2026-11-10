@@ -71,7 +71,7 @@ begin
 end;
 $function$;
 
-revoke all on function public.current_access_context_v1() from public, anon;
+revoke all on function public.current_access_context_v1() from public, anon, service_role;
 grant execute on function public.current_access_context_v1() to authenticated;
 
 -- Staging checks:

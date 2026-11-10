@@ -23,6 +23,13 @@
 <section id="workspace" class="hidden">
 <div class="card topline"><div><h1 style="margin:0">Branch Management</h1><div id="identity" class="muted"></div></div><div class="row"><select id="orgSelect" aria-label="Organization নির্বাচন"></select><button id="refreshBtn" class="btn alt">Refresh</button><button id="signOut" class="btn danger">লগ আউট</button></div></div>
 <div id="appMessage" class="notice hidden" role="status" aria-live="polite"></div>
+<section id="moduleLifecycle" class="card section">
+ <div class="topline"><div><h2 style="margin:0">🧩 Module Lifecycle</h2><p class="muted">Request → Independent Approval → Apply · Database RPC দ্বারা নিয়ন্ত্রিত</p></div><button id="refreshModules" type="button" class="btn alt">মডিউল Refresh</button></div>
+ <div class="notice">মডিউল পরিবর্তনের অনুরোধ আলাদা অনুমোদন ছাড়া কার্যকর হবে না। অনুরোধকারী নিজে অনুমোদন করতে পারবেন না। এখানে কোনো Legacy RPC ব্যবহার করা হয় না।</div>
+ <div id="moduleLifecycleMessage" class="notice hidden" role="status" aria-live="polite"></div>
+ <div id="moduleCatalog" class="grid section"><p class="muted">মডিউল তালিকা লোড হচ্ছে…</p></div>
+ <div class="section"><h3>Module Change Requests & Approvals</h3><div id="moduleRequestList" class="list"><p class="muted">অনুরোধ লোড হচ্ছে…</p></div></div>
+</section>
 <div class="grid section" id="dashboardCards">
 <div class="card"><div class="muted">মোট ব্রাঞ্চ</div><div id="kpiTotal" style="font-size:28px;font-weight:850">—</div></div>
 <div class="card"><div class="muted">Active</div><div id="kpiActive" style="font-size:28px;font-weight:850;color:var(--green)">—</div></div>
@@ -131,7 +138,7 @@ const SUPABASE_URL="https://pojhrvmuamdejlutxpng.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY="sb_publishable_T1HsW9dErikWZyt0jHammA_TUgg4PTT";
 const sb=window.supabase?.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
 const $=id=>document.getElementById(id);
-let user=null, organizations=[], activeOrg=null, activeBranch=null, contacts=[], locationTree=[], editingAddressBase={};
+let user=null, organizations=[], activeOrg=null, activeOrgPermissions=[], activeBranch=null, contacts=[], locationTree=[], editingAddressBase={};
 const gate=(message,kind="info")=>{ $("gateMessage").textContent=message;$("gateMessage").className="notice"+(kind==="error"?" err":kind==="ok"?" ok":""); };
 const note=(message,kind="info")=>{ $("appMessage").textContent=message;$("appMessage").className="notice"+(kind==="error"?" err":kind==="ok"?" ok":"");$("appMessage").classList.remove("hidden"); };
 const fail=(error)=>{console.error(error);note(error?.message||"অনুরোধটি সম্পন্ন করা যায়নি। Permission ও connection যাচাই করুন।","error");};
@@ -162,19 +169,25 @@ const rpc=async(name,args)=>{const {data,error}=await sb.rpc(name,args);if(error
 function esc(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 function setGateState(allowed){$("gate").classList.toggle("hidden",allowed);$("workspace").classList.toggle("hidden",!allowed);}
 async function boot(){
- if(!sb){gate("Supabase client লোড হয়নি। ইন্টারনেট সংযোগ যাচাই করুন।","error");return;}
+ if(!sb){setGateState(false);gate("Supabase client লোড হয়নি। ইন্টারনেট সংযোগ যাচাই করুন।","error");return;}
  const {data:{user:u},error}=await sb.auth.getUser();
  if(error||!u){setGateState(false);gate("লগ ইন করা নেই। Authentication Preview থেকে লগ ইন করুন।");$("loginLink").classList.remove("hidden");return;}
  user=u;$("sessionLabel").textContent="Signed in";$("identity").textContent=u.email||u.id;
- if(!u.email_confirmed_at||!u.phone_confirmed_at){setGateState(false);gate("ইমেইল ও মোবাইল—দুটির যাচাই সম্পন্ন না হওয়া পর্যন্ত Branch Module বন্ধ থাকবে।","error");$("logoutBtn").classList.remove("hidden");return;}
- const {data:members,error:memberError}=await sb.from("organizations").select("id,name,status").eq("status","active");
- if(memberError){setGateState(false);gate("Organization access যাচাই করা যায়নি: "+memberError.message,"error");$("logoutBtn").classList.remove("hidden");return;}
- // The organizations SELECT policy calls private.is_org_member(id); this avoids
- // requiring member.read merely to discover the current user's own organizations.
- organizations=(members||[]).map(m=>({organization_id:m.id,organization_name:m.name}));
- if(!organizations.length){setGateState(false);gate("Identity verified, কিন্তু কোনো Active Organization Membership নেই। Owner bootstrap সম্পন্ন না হওয়া পর্যন্ত ব্যবসায়িক ডেটা বন্ধ থাকবে।");$("logoutBtn").classList.remove("hidden");return;}
+ // V1 authentication is email-only. Never require phone_confirmed_at / SMS OTP.
+ if(!u.email_confirmed_at){setGateState(false);gate("ইমেইল যাচাই সম্পন্ন না হওয়া পর্যন্ত Branch Module বন্ধ থাকবে।","error");$("logoutBtn").classList.remove("hidden");return;}
+ // Resolve organization access from the same database-backed authorization context
+ // used by Authentication Preview. UI state is not an authorization boundary:
+ // each branch RPC and RLS policy must independently re-check permissions.
+ const {data:accessData,error:accessError}=await sb.rpc("current_access_context_v1");
+ if(accessError||!accessData||!Array.isArray(accessData.organizations)){
+  setGateState(false);gate("Database authorization যাচাই করা যায়নি। নিরাপত্তার জন্য Branch Module বন্ধ রাখা হয়েছে।","error");$("logoutBtn").classList.remove("hidden");return;
+ }
+ organizations=accessData.organizations
+  .filter(org=>Array.isArray(org.permissions)&&org.permissions.includes("branch.read"))
+  .map(org=>({organization_id:org.organization_id,organization_name:org.organization_name,permissions:org.permissions}));
+ if(!organizations.length){setGateState(false);gate("আপনার কোনো Active Organization Membership-এ branch.read Permission পাওয়া যায়নি। Owner/Member access অনুমোদিত না হওয়া পর্যন্ত Branch Module বন্ধ থাকবে।");$("logoutBtn").classList.remove("hidden");return;}
  $("orgSelect").innerHTML=organizations.map(m=>'<option value="'+esc(m.organization_id)+'">'+esc(m.organization_name||"Organization")+' · '+esc(m.organization_id.slice(0,8))+'</option>').join("");
- activeOrg=organizations[0].organization_id;$("orgSelect").value=activeOrg;setGateState(true);await loadBranches();
+ activeOrg=organizations[0].organization_id;activeOrgPermissions=organizations[0].permissions||[];$("orgSelect").value=activeOrg;setGateState(true);await loadBranches();await loadModuleLifecycle();
 }
 let cachedBranches=[];
 async function loadDashboard(){
@@ -275,9 +288,60 @@ $("searchMembers").addEventListener("click",searchOrganizationMembers);
 $("memberSearch").addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();searchOrganizationMembers();}});
 $("staffAccessForm").addEventListener("submit",async e=>{e.preventDefault();const userId=$("staffUserId").value.trim();if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)){note("সঠিক User UUID নির্বাচন করুন।","error");return;}try{await rpc("branch_assign_member_access",{p_organization_id:orgId(),p_branch_id:activeBranch,p_user_id:userId,p_access_level:$("staffAccessLevel").value});$("staffAccessForm").reset();$("memberSearchResults").innerHTML="";note("Branch access assign হয়েছে।","ok");await loadStaffAccess();}catch(e){fail(e);}});
 
+
+const hasOrgPermission=permission=>activeOrgPermissions.includes(permission);
+const lifecycleMessage=(message,kind="info")=>{const el=$("moduleLifecycleMessage");el.textContent=message;el.className="notice"+(kind==="error"?" err":kind==="ok"?" ok":"");el.classList.remove("hidden");};
+const lifecycleError=error=>{console.error("Module Lifecycle",error);lifecycleMessage(error?.message||"Module Lifecycle অনুরোধ ব্যর্থ হয়েছে। V1 RPC deployment ও permission যাচাই করুন।","error");};
+async function loadModuleLifecycle(){
+ const catalog=$("moduleCatalog"),requests=$("moduleRequestList");
+ if(!activeOrg){catalog.innerHTML='<p class="muted">Organization নির্বাচন করুন।</p>';requests.innerHTML="";return;}
+ const canRead=hasOrgPermission("module.read"),canRequest=hasOrgPermission("module.request");
+ catalog.innerHTML='<p class="muted">মডিউল তালিকা যাচাই হচ্ছে…</p>';requests.innerHTML='<p class="muted">অনুরোধ যাচাই হচ্ছে…</p>';
+ try{
+  const {data:modules,error:moduleError}=await sb.from("platform_modules").select("id,module_key,module_name,description,current_version,is_core,is_active").eq("is_active",true).order("module_name");
+  if(moduleError)throw moduleError;
+  let orgRows=[];
+  if(canRead){const {data,error}=await sb.from("organization_modules").select("module_id,status,installed_version").eq("organization_id",orgId());if(error)throw error;orgRows=data||[];}
+  const states=new Map(orgRows.map(row=>[row.module_id,row]));
+  catalog.innerHTML=(modules||[]).map(module=>{
+   const state=states.get(module.id),status=state?.status||"disabled",canChange=canRead&&canRequest&&!module.is_core&&["active","disabled"].includes(status),action=status==="active"?"disable":"enable";
+   return '<article class="branch"><div class="topline"><span class="pill '+(status==="active"?"":"inactive")+'">'+esc(module.is_core?"CORE":status)+'</span><span class="muted">v'+esc(state?.installed_version||module.current_version)+'</span></div><h3>'+esc(module.module_name)+'</h3><p class="muted">'+esc(module.description||module.module_key)+'</p><div class="muted">Key: '+esc(module.module_key)+'</div>'+(module.is_core?'<p class="hint">Core module — tenant lifecycle থেকে পরিবর্তন করা যাবে না।</p>':canChange?'<div class="actions"><button type="button" class="btn alt" data-module-request="'+esc(module.module_key)+'" data-request-type="'+action+'">'+(action==="enable"?"Enable request":"Disable request")+'</button></div>':!canRead?'<p class="hint">নিরাপদ current-state যাচাইয়ের জন্য module.read permission প্রয়োজন।</p>':!canRequest?'<p class="hint">module.request permission প্রয়োজন।</p>':'<p class="hint">বর্তমান state: '+esc(status)+' — V1 workflow দিয়ে পরিবর্তনযোগ্য নয়।</p>')+'</article>';
+  }).join("")||'<p class="muted">কোনো Active platform module পাওয়া যায়নি।</p>';
+  if(!canRead){requests.innerHTML='<p class="muted">Request history দেখতে module.read permission প্রয়োজন। Request করার অনুমতি থাকলে উপরের মডিউল থেকে অনুরোধ করা যাবে।</p>';return;}
+  const {data:changes,error:changeError}=await sb.from("module_change_requests").select("id,module_id,request_type,requested_by,approval_request_id,status,reason,created_at").eq("organization_id",orgId()).order("created_at",{ascending:false}).limit(50);
+  if(changeError)throw changeError;
+  let approvals=[];
+  if(hasOrgPermission("approval.read")){const {data,error}=await sb.from("approval_requests").select("id,requested_by,status,reason,expires_at,created_at").eq("organization_id",orgId()).eq("request_type","module_change").order("created_at",{ascending:false}).limit(50);if(error)throw error;approvals=data||[];}
+  const approvalMap=new Map(approvals.map(item=>[item.id,item])),moduleMap=new Map((modules||[]).map(item=>[item.id,item]));
+  requests.innerHTML=(changes||[]).length?(changes||[]).map(change=>{
+   const approval=approvalMap.get(change.approval_request_id),module=moduleMap.get(change.module_id),status=approval?.status||change.status;
+   const canDecide=hasOrgPermission("approval.read")&&hasOrgPermission("approval.approve")&&approval?.status==="pending"&&approval.requested_by!==user?.id;
+   const canApply=hasOrgPermission("approval.read")&&hasOrgPermission("module.manage")&&change.status==="approved"&&approval?.status==="approved";
+   const controls=(canDecide?'<button type="button" class="btn alt" data-module-decision="'+esc(approval.id)+'" data-decision="approved">Approve</button><button type="button" class="btn danger" data-module-decision="'+esc(approval.id)+'" data-decision="rejected">Reject</button>':"")+(canApply?'<button type="button" class="btn" data-module-apply="'+esc(change.id)+'">Apply approved change</button>':"");
+   return '<article class="item"><div class="topline"><b>'+esc(module?.module_name||"Platform Module")+' · '+esc(change.request_type)+'</b><span class="pill '+(status==="approved"?"":status==="pending"?"inactive":"suspended")+'">'+esc(status)+'</span></div><p class="muted">'+esc(change.reason)+' · Requester: '+esc(change.requested_by)+' · '+esc(change.created_at)+'</p>'+(approval?.expires_at?'<p class="hint">Approval expires: '+esc(approval.expires_at)+'</p>':"")+(controls?'<div class="actions">'+controls+'</div>':approval?.status==="pending"&&approval.requested_by===user?.id?'<p class="hint">নিজের অনুরোধ নিজে approve/reject করা যাবে না।</p>':"")+'</article>';
+  }).join(""):'<p class="muted">এই Organization-এ কোনো Module Change Request নেই।</p>';
+  if(!hasOrgPermission("approval.read"))requests.insertAdjacentHTML("afterbegin",'<p class="hint">Approval status ও সিদ্ধান্ত দেখতে approval.read permission প্রয়োজন।</p>');
+ }catch(error){catalog.innerHTML='<p class="notice err">মডিউল তালিকা পড়া যায়নি। Database permission ও schema যাচাই করুন।</p>';requests.innerHTML='<p class="muted">Request history এখন পাওয়া যাচ্ছে না।</p>';lifecycleError(error);}
+}
+async function requestModuleChange(moduleKey,requestType){
+ const reason=prompt((requestType==="enable"?"মডিউল চালুর":"মডিউল বন্ধের")+" কারণ লিখুন (কমপক্ষে ৫ অক্ষর):");if(!reason||reason.trim().length<5)return;
+ try{await rpc("module_request_change_v1",{p_organization_id:orgId(),p_module_key:moduleKey,p_request_type:requestType,p_reason:reason.trim()});lifecycleMessage("Request জমা হয়েছে। Independent approver-এর সিদ্ধান্ত না হওয়া পর্যন্ত কোনো পরিবর্তন কার্যকর হবে না।","ok");await loadModuleLifecycle();}catch(error){lifecycleError(error);}
+}
+async function decideModuleApproval(approvalId,decision){
+ const comment=prompt(decision==="approved"?"Approval comment (ঐচ্ছিক):":"Reject করার কারণ লিখুন:");if(comment===null)return;
+ try{await rpc("module_approval_decide_v1",{p_organization_id:orgId(),p_approval_request_id:approvalId,p_decision:decision,p_comment:comment.trim()||null});lifecycleMessage(decision==="approved"?"Request independently approved হয়েছে।":"Request rejected হয়েছে।","ok");await loadModuleLifecycle();}catch(error){lifecycleError(error);}
+}
+async function applyModuleChange(changeId){
+ if(!confirm("স্বাধীনভাবে অনুমোদিত Module Change Apply করবেন?"))return;
+ try{await rpc("module_apply_approved_change_v1",{p_organization_id:orgId(),p_module_change_request_id:changeId});lifecycleMessage("Approved module change Apply হয়েছে এবং Database audit record তৈরি হয়েছে।","ok");await loadModuleLifecycle();}catch(error){lifecycleError(error);}
+}
+$("moduleCatalog").addEventListener("click",async event=>{const button=event.target.closest("[data-module-request]");if(!button)return;if(!hasOrgPermission("module.request"))return lifecycleMessage("module.request permission প্রয়োজন।","error");await requestModuleChange(button.dataset.moduleRequest,button.dataset.requestType);});
+$("moduleRequestList").addEventListener("click",async event=>{const decision=event.target.closest("[data-module-decision]"),apply=event.target.closest("[data-module-apply]");if(decision){if(!hasOrgPermission("approval.approve"))return lifecycleMessage("approval.approve permission প্রয়োজন।","error");await decideModuleApproval(decision.dataset.moduleDecision,decision.dataset.decision);}else if(apply){if(!hasOrgPermission("module.manage"))return lifecycleMessage("module.manage permission প্রয়োজন।","error");await applyModuleChange(apply.dataset.moduleApply);}});
+$("refreshModules").addEventListener("click",loadModuleLifecycle);
+
 document.querySelectorAll("[data-panel]").forEach(b=>b.addEventListener("click",async()=>{document.querySelectorAll("[data-panel]").forEach(x=>x.classList.toggle("active",x===b));document.querySelectorAll(".panel").forEach(x=>x.classList.toggle("hidden",x.id!=="panel-"+b.dataset.panel));if(b.dataset.panel==="audit")await loadAudit();if(b.dataset.panel==="staff")await loadStaffAccess();}));
-$("orgSelect").addEventListener("change",async e=>{activeOrg=e.target.value;$("detail").classList.add("hidden");closeEditor();await loadBranches();});
-$("newBranchBtn").addEventListener("click",()=>openEditor());$("applyBranchFilter").addEventListener("click",loadBranches);$("branchSearch").addEventListener("keydown",e=>{if(e.key==="Enter")loadBranches();});$("branchStatusFilter").addEventListener("change",loadBranches);$("exportBranches").addEventListener("click",exportBranchesCsv);$("closeEditor").addEventListener("click",closeEditor);$("cancelEdit").addEventListener("click",closeEditor);$("closeDetail").addEventListener("click",()=>$("detail").classList.add("hidden"));$("refreshBtn").addEventListener("click",loadBranches);
+$("orgSelect").addEventListener("change",async e=>{activeOrg=e.target.value;activeOrgPermissions=organizations.find(o=>o.organization_id===activeOrg)?.permissions||[];$("detail").classList.add("hidden");closeEditor();await loadBranches();await loadModuleLifecycle();});
+$("newBranchBtn").addEventListener("click",()=>openEditor());$("applyBranchFilter").addEventListener("click",loadBranches);$("branchSearch").addEventListener("keydown",e=>{if(e.key==="Enter")loadBranches();});$("branchStatusFilter").addEventListener("change",loadBranches);$("exportBranches").addEventListener("click",exportBranchesCsv);$("closeEditor").addEventListener("click",closeEditor);$("cancelEdit").addEventListener("click",closeEditor);$("closeDetail").addEventListener("click",()=>$("detail").classList.add("hidden"));$("refreshBtn").addEventListener("click",async()=>{await loadBranches();await loadModuleLifecycle();});
 async function signOut(){await sb.auth.signOut();location.reload();}$("signOut").addEventListener("click",signOut);$("logoutBtn").addEventListener("click",signOut);$("loginLink").addEventListener("click",()=>location.href="../auth-preview/");
 sb?.auth.onAuthStateChange((_event)=>{setTimeout(()=>boot(),0);});
 boot();
