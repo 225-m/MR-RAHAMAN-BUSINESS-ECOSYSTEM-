@@ -1,0 +1,58 @@
+name: Deploy MR RAHAMAN Web App and Chrome Install
+
+on:
+  push:
+    branches:
+      - feature/customer-access-v1
+    paths:
+      - 'index.html'
+      - 'auth-preview/**'
+      - 'assets/brand/**'
+      - 'icons/**'
+      - 'manifest.webmanifest'
+      - 'service-worker.js'
+      - 'offline.html'
+      - '.github/workflows/deploy-mr-rahaman-app.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    if: github.ref == 'refs/heads/feature/customer-access-v1'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Assemble website
+        run: |
+          mkdir -p site
+          cp index.html manifest.webmanifest service-worker.js offline.html site/
+          cp -R auth-preview assets icons site/
+          test -s site/index.html
+          test -s site/auth-preview/index.html
+          test -s site/manifest.webmanifest
+          test -s site/service-worker.js
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
