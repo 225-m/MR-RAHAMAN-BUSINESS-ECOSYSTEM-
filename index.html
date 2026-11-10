@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#102a43">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MR RAHAMAN">
 <meta name="description" content="MR RAHAMAN Business Ecosystem — একটি modular, security-first business platform foundation.">
 <title>MR RAHAMAN | Business Ecosystem</title>
 <style>
@@ -20,7 +24,7 @@ h1{font-size:clamp(34px,5vw,58px);line-height:1.12;margin:14px 0 18px;letter-spa
 .lead{font-size:17px;color:#d7e5f2;max-width:660px;margin:0}
 .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}
 .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 19px;border-radius:10px;text-decoration:none;font-weight:750;font-size:14px;border:1px solid transparent}
-.btn.primary{background:var(--gold);color:#102a43}.btn.secondary{border-color:#7894ad;color:#fff;background:#ffffff0a}
+.btn.primary{background:var(--gold);color:#102a43}.btn.secondary{border-color:#7894ad;color:#fff;background:#ffffff0a}.btn.install{background:#16845b;color:#fff;display:none}.btn.install.visible{display:inline-flex}
 .hero-mark{display:flex;justify-content:center;align-items:center}.hero-mark img{width:min(100%,320px);height:auto;filter:drop-shadow(0 18px 30px #0005)}
 .wrap{max-width:1120px;margin:auto;padding:56px 22px}.section-head{max-width:720px;margin-bottom:24px}.section-head h2{font-size:28px;margin:0 0 8px}.section-head p{color:var(--muted);margin:0}
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.tile{background:var(--white);border:1px solid var(--line);border-radius:15px;padding:20px;min-width:0}.tile .ico{font-size:25px}.tile h3{font-size:16px;margin:10px 0 6px}.tile p{font-size:13px;color:var(--muted);margin:0}
@@ -50,7 +54,7 @@ footer{background:#0b1b30;color:#c5d9ed;padding:24px 22px;font-size:12px}.foot{m
 <div class="eyebrow">One ecosystem · Modular by design</div>
 <h1>ব্যবসা পরিচালনার<br>একটি সমন্বিত ইকোসিস্টেম</h1>
 <p class="lead">MR RAHAMAN Business Ecosystem — বহু প্রতিষ্ঠান, শাখা, টিম ও ব্যবসায়িক কার্যক্রমকে একটি সম্প্রসারণযোগ্য ডিজিটাল কাঠামোয় পরিচালনার জন্য তৈরি একটি modular platform foundation.</p>
-<div class="actions"><a class="btn primary" href="auth-preview/">নিরাপদ প্রবেশ</a><a class="btn secondary" href="#platform">প্ল্যাটফর্ম সম্পর্কে জানুন</a></div>
+<div class="actions"><a class="btn primary" href="auth-preview/">নিরাপদ প্রবেশ</a><a class="btn secondary" href="#platform">প্ল্যাটফর্ম সম্পর্কে জানুন</a><button class="btn install" id="installApp" type="button">অ্যাপ ইনস্টল করুন</button></div><p id="installHelp" class="lead" style="font-size:12px;margin-top:12px" aria-live="polite"></p>
 </div>
 <div class="hero-mark"><img src="assets/brand/mr-rahaman-business-ecosystem.svg" alt="MR RAHAMAN Business Ecosystem emblem"></div>
 </div>
@@ -78,5 +82,41 @@ footer{background:#0b1b30;color:#c5d9ed;padding:24px 22px;font-size:12px}.foot{m
 </div></section>
 </main>
 <footer><div class="foot"><span>© MR RAHAMAN Business Ecosystem</span><span>Development Preview · Not a production release</span></div></footer>
+<script>
+(() => {
+  const installButton = document.getElementById("installApp");
+  const installHelp = document.getElementById("installHelp");
+  let installPrompt = null;
+  const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  if (isStandalone()) {
+    installHelp.textContent = "অ্যাপ মোডে চালু আছে।";
+  }
+  window.addEventListener("beforeinstallprompt", event => {
+    event.preventDefault();
+    installPrompt = event;
+    installButton.classList.add("visible");
+  });
+  installButton.addEventListener("click", async () => {
+    if (!installPrompt) {
+      installHelp.textContent = "Chrome মেনু (⋮) খুলে ‘Install app’ অথবা ‘Add to Home screen’ নির্বাচন করুন।";
+      return;
+    }
+    installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    installHelp.textContent = choice.outcome === "accepted" ? "ইনস্টল প্রক্রিয়া গ্রহণ করা হয়েছে।" : "ইনস্টল এখন করা হয়নি; পরে আবার করতে পারবেন।";
+    installPrompt = null;
+    installButton.classList.remove("visible");
+  });
+  window.addEventListener("appinstalled", () => {
+    installHelp.textContent = "MR RAHAMAN Business Ecosystem ইনস্টল হয়েছে।";
+    installButton.classList.remove("visible");
+  });
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js", {scope:"./"}).catch(() => {
+      installHelp.textContent = "Offline সুবিধা এই মুহূর্তে চালু করা যায়নি। অনলাইন ওয়েবসাইট ব্যবহার করা যাবে।";
+    }));
+  }
+})();
+</script>
 </body>
 </html>
