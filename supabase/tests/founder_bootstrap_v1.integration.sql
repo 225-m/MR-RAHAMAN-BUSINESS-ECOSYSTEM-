@@ -34,7 +34,7 @@ for each row execute function public.test_reject_founder_audit_insert();
 select pg_catalog.set_config('request.jwt.claim.role','service_role',false);
 
 -- Negative: an Auth identity without email confirmation cannot bootstrap.
-do $
+do $$
 begin
   perform public.bootstrap_first_project_founder_main_admin_v1(
     '00000000-0000-4000-8000-000000000226'
@@ -43,9 +43,9 @@ begin
 exception when insufficient_privilege then
   if sqlerrm <> 'Allowlisted Auth account missing or email unverified' then raise; end if;
 end;
-$;
+$$;
 
-do $
+do $$
 begin
   perform public.bootstrap_first_project_founder_main_admin_v1(
     '00000000-0000-4000-8000-000000000225'
