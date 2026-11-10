@@ -56,6 +56,14 @@ The Edge Function must fetch the Auth user from the supplied bearer token, compa
 
 The Founder bootstrap requires `public.platform_audit_logs` from the Owner Management draft and writes the organization bootstrap event to `public.module_audit_logs`. Both inserts must succeed in the same database transaction as Founder, Owner, organization, role, permission, membership, and core-module creation. Any audit failure must roll back every write.
 
+### F. Edge Function JWT and Auth confirmation configuration
+
+The repository now explicitly sets `[functions.owner-bootstrap] verify_jwt = true` in `supabase/config.toml`. This is source configuration only and has not been deployed. The same setting must be confirmed in the staging deployment. The local Auth config currently has `enable_confirmations = false`; staging must enable email confirmations or use a deliberately verified test identity so the unverified-account negative test is meaningful. Do not assume local config proves the hosted project's Auth settings.
+
+### G. Supabase Security Advisor
+
+The latest read-only Security Advisor reports one warning: **Leaked Password Protection Disabled**. This is not a Founder bootstrap blocker, but should be enabled in Supabase Auth password security settings before public customer onboarding. No Auth setting was changed during this work.
+
 ### E. Full Owner permission mapping
 
 The bootstrap currently grants all 41 existing permissions to the initial organization Owner role. Before staging execution, verify that all 41 permission keys are intentionally assigned to the Owner role, and confirm module-to-permission mapping. Do not infer that a count of 41 alone proves semantic correctness.
