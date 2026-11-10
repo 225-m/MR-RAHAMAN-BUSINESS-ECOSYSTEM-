@@ -113,13 +113,13 @@ The workflow is designed to run source assertions, Deno type-checking, start a d
 - authenticated direct-RPC denial;
 - last active Platform Owner revoke protection.
 
-**Execution status:** workflow and test sources are committed, but GitHub Actions currently reports no status checks for the latest test commit. Therefore no CI test is claimed as passed yet. Run the workflow from GitHub Actions (or trigger a new push to this branch) and review its job logs before treating the tests as passed.
+**Execution status (10 Nov 2026):** GitHub Actions run [42787395669](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42787395669) completed with `success`. All steps passed: static source tests, Deno type-check, disposable local Supabase startup/reset, reviewed draft SQL application, positive/negative database integration tests, and cleanup. This is an ephemeral local CI database, not hosted Staging or Production.
 
 The local CI database is ephemeral and is not a hosted Staging project. It must never be confused with the Production database.
 
 ## 4B. Remaining validation blockers
 
-- The Edge Function dependency currently uses `npm:@supabase/supabase-js@2` without an exact version pin; pin and re-run Deno checks before deployment.
+- The Edge Function dependency is now pinned to `npm:@supabase/supabase-js@2.119.0`; a fresh CI run must confirm the pin and source test before any deployment.
 - The Edge Function currently supports one exact allowlisted Origin. Confirm the final production origin before configuring staging secrets.
 - Runtime HTTP tests for wrong identity, disallowed origin, missing secrets, and concurrent requests are not yet executed.
 - Browser and Android live-session tests remain pending.
