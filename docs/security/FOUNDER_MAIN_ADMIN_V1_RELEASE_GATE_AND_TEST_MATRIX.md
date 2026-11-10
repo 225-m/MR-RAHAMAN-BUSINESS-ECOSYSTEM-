@@ -113,17 +113,17 @@ The workflow is designed to run source assertions, Deno type-checking, start a d
 - authenticated direct-RPC denial;
 - last active Platform Owner revoke protection.
 
-**Execution status (10 Nov 2026):** GitHub Actions run [42787395669](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42787395669) completed with `success`. All steps passed: static source tests, Deno type-check, disposable local Supabase startup/reset, reviewed draft SQL application, positive/negative database integration tests, and cleanup. This is an ephemeral local CI database, not hosted Staging or Production.
+**Execution status (10 Nov 2026):** GitHub Actions run [42788522536](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42788522536) completed with `success`. All steps passed: static source tests, Deno type-check, disposable local Supabase startup/reset, Edge Function HTTP negative tests, reviewed draft SQL application, positive/negative database integration tests, and cleanup. This is an ephemeral local CI database, not hosted Staging or Production.
 
 The local CI database is ephemeral and is not a hosted Staging project. It must never be confused with the Production database.
 
 ## 4B. Remaining validation blockers
 
-- The Edge Function dependency is now pinned to `npm:@supabase/supabase-js@2.119.0`; a fresh CI run must confirm the pin and source test before any deployment.
-- The Edge Function currently supports one exact allowlisted Origin. Confirm the final production origin before configuring staging secrets.
-- Runtime HTTP tests for wrong identity, disallowed origin, missing secrets, and concurrent requests are not yet executed.
-- Browser and Android live-session tests remain pending.
-- A separate hosted Staging project/branch has not been created; no paid compute or project was provisioned.
+- The Edge Function dependency is pinned to `npm:@supabase/supabase-js@2.119.0`; run #16 passed Deno type-check and static source tests against this branch.
+- The Edge Function currently supports one exact allowlisted Origin. The local HTTP suite verified rejection of a disallowed Origin, allowed-origin preflight, unsupported method, missing bearer token, invalid bearer token, and a valid JWT belonging to a confirmed but non-allowlisted user.
+- Runtime tests for missing server secrets and concurrent bootstrap HTTP requests remain outstanding; database-level one-time/replay and transaction tests passed in the local integration suite.
+- Browser and Android live-session tests remain pending; this session has no available live browser/device automation capability.
+- A separate hosted Staging project/branch has not been created; no paid compute or project was provisioned. Do not use the unrelated `chnkwdxrjtfrzemviems` project as staging.
 - Production Founder Bootstrap remains blocked pending all staging/CI results and a separate release decision.
 
 ## 5. Read-only preflight SQL
