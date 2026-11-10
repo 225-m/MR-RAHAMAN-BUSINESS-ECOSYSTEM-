@@ -1,42 +1,27 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 365" role="img" aria-labelledby="title desc">
 <title id="title">MR RAHAMAN Business Ecosystem</title>
-<desc id="desc">A future-ready enterprise identity combining an intelligent network globe, modular architecture, secure core and upward growth motif.</desc>
+<desc id="desc">A modern blue and green MR monogram over a network globe, with an upward growth arrow and modular bars.</desc>
 <defs>
- <linearGradient id="navy" x2="0" y2="1"><stop stop-color="#102b59"/><stop offset="1" stop-color="#06132e"/></linearGradient>
- <linearGradient id="gold" x2="1" y2="1"><stop stop-color="#fff2a6"/><stop offset=".35" stop-color="#f4bd45"/><stop offset=".7" stop-color="#bd791b"/><stop offset="1" stop-color="#ffe68a"/></linearGradient>
- <linearGradient id="silver" x2="0" y2="1"><stop stop-color="#fff"/><stop offset=".55" stop-color="#cbd9ed"/><stop offset="1" stop-color="#8299bb"/></linearGradient>
- <linearGradient id="cyan" x2="0" y2="1"><stop stop-color="#7af5ff"/><stop offset="1" stop-color="#0878e8"/></linearGradient>
- <radialGradient id="glow"><stop stop-color="#1789ff" stop-opacity=".5"/><stop offset="1" stop-color="#1789ff" stop-opacity="0"/></radialGradient>
- <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="12"/></filter>
+ <linearGradient id="blue" x1="0" y1="0" x2="0.9" y2="1"><stop stop-color="#20b8ff"/><stop offset=".48" stop-color="#0755d8"/><stop offset="1" stop-color="#061c67"/></linearGradient>
+ <linearGradient id="green" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a6ff19"/><stop offset=".48" stop-color="#18b927"/><stop offset="1" stop-color="#00652e"/></linearGradient>
+ <linearGradient id="silver" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#b8d9ff"/></linearGradient>
+ <filter id="glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9"/></filter>
 </defs>
-<rect width="1200" height="900" rx="42" fill="url(#navy)"/>
-<circle cx="600" cy="315" r="310" fill="url(#glow)"/>
-<g fill="none" stroke="#168dff" opacity=".45">
- <circle cx="600" cy="295" r="235" stroke-width="2"/><ellipse cx="600" cy="295" rx="110" ry="235" stroke-width="2"/>
- <ellipse cx="600" cy="295" rx="190" ry="235" stroke-width="1.5"/>
- <path d="M370 295h460M405 205h390M405 385h390M600 60v470" stroke-width="1.5"/>
+<circle cx="492" cy="170" r="151" fill="#1689ff" opacity=".13" filter="url(#glow)"/>
+<g fill="none" stroke="#3aaeff" opacity=".5">
+ <circle cx="492" cy="170" r="146" stroke-width="3"/>
+ <ellipse cx="492" cy="170" rx="68" ry="146" stroke-width="2"/>
+ <ellipse cx="492" cy="170" rx="119" ry="146" stroke-width="1.5"/>
+ <path d="M350 170h284M374 105h236M374 235h236M492 24v292" stroke-width="1.5"/>
 </g>
-<g fill="#47caff" opacity=".75">
- <circle cx="390" cy="190" r="5"/><circle cx="810" cy="210" r="5"/><circle cx="465" cy="490" r="5"/><circle cx="735" cy="470" r="5"/>
- <circle cx="600" cy="60" r="6"/><circle cx="835" cy="330" r="4"/><circle cx="365" cy="330" r="4"/>
-</g>
-<path d="M392 388 Q600 485 808 388" fill="none" stroke="url(#gold)" stroke-width="10" stroke-linecap="round"/>
-<g transform="translate(0 0)">
- <path d="M360 352 420 135 520 255 600 128 680 255 785 135 840 352" fill="none" stroke="#031027" stroke-width="34" stroke-linejoin="round" opacity=".7"/>
- <path d="M360 340 420 123 520 243 600 116 680 243 785 123 840 340" fill="none" stroke="url(#silver)" stroke-width="25" stroke-linejoin="round"/>
- <path d="M460 340 520 243 600 310 680 243 740 340" fill="none" stroke="url(#gold)" stroke-width="22" stroke-linejoin="round"/>
- <path d="M700 350 765 350 765 285 825 285 825 220 885 220 885 155 945 155 945 90" fill="none" stroke="url(#cyan)" stroke-width="20" stroke-linejoin="round"/>
- <path d="m915 110 30-28 30 28" fill="none" stroke="url(#gold)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-<text x="600" y="570" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="76" font-weight="800" letter-spacing="7" fill="url(#silver)">MR RAHAMAN</text>
-<path d="M190 602h820" stroke="url(#gold)" stroke-width="4"/>
-<text x="600" y="668" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="54" font-weight="800" letter-spacing="3" fill="url(#gold)">BUSINESS ECOSYSTEM</text>
-<text x="600" y="718" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="25" font-weight="600" letter-spacing="2" fill="#d9eaff">INTELLIGENCE • INTEGRATION • INFINITE GROWTH</text>
-<g transform="translate(150 775)" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" text-anchor="middle" fill="#d7eaff">
- <g><path d="M0 0h180" stroke="#1b82da" stroke-width="3"/><text x="90" y="35">AI &amp; AUTOMATION</text></g>
- <g transform="translate(225)"><path d="M0 0h180" stroke="#1b82da" stroke-width="3"/><text x="90" y="35">MODULAR PLATFORM</text></g>
- <g transform="translate(450)"><path d="M0 0h180" stroke="#1b82da" stroke-width="3"/><text x="90" y="35">TRUST &amp; SECURITY</text></g>
- <g transform="translate(675)"><path d="M0 0h180" stroke="#1b82da" stroke-width="3"/><text x="90" y="35">BUSINESS INTELLIGENCE</text></g>
-</g>
-<rect x="12" y="12" width="1176" height="876" rx="34" fill="none" stroke="url(#gold)" stroke-width="5" opacity=".9"/>
+<g fill="#7ce3ff"><circle cx="370" cy="94" r="5"/><circle cx="613" cy="111" r="5"/><circle cx="414" cy="302" r="4"/><circle cx="577" cy="284" r="4"/></g>
+<path d="M250 230C350 350 600 342 740 208" fill="none" stroke="url(#green)" stroke-width="18" stroke-linecap="round"/>
+<path d="M247 220C350 323 595 318 736 187" fill="none" stroke="#b8ff4d" stroke-width="4" stroke-linecap="round"/>
+<path d="M275 242 340 72 423 166 492 78 562 166 646 72 700 242" fill="none" stroke="#04194d" stroke-width="42" stroke-linejoin="round" opacity=".55"/>
+<path d="M275 228 340 58 423 151 492 64 562 151 646 58 700 228" fill="none" stroke="url(#blue)" stroke-width="34" stroke-linejoin="round"/>
+<path d="M431 226 492 151 555 226" fill="none" stroke="url(#green)" stroke-width="29" stroke-linejoin="round"/>
+<g fill="url(#blue)"><path d="M678 231h38v-42h38v-42h38v-42h38v126z"/></g>
+<path d="m803 121 58-58 34 34" fill="none" stroke="url(#green)" stroke-width="19" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="m838 63 57 0-3 57" fill="none" stroke="url(#green)" stroke-width="17" stroke-linecap="round" stroke-linejoin="round"/>
+<g fill="url(#green)"><rect x="462" y="183" width="24" height="24" rx="3"/><rect x="493" y="183" width="24" height="24" rx="3"/><rect x="462" y="214" width="24" height="24" rx="3"/><rect x="493" y="214" width="24" height="24" rx="3"/></g>
 </svg>
