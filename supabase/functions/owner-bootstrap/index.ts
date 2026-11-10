@@ -2,7 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 
 const URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-const SERVICE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SERVICE = Deno.env.get("OWNER_BOOTSTRAP_SERVICE_ROLE_KEY") ?? "";
 // Set only in Supabase Edge Function secrets after staging review. Never commit the value.
 const ALLOWED_USER_ID = Deno.env.get("OWNER_BOOTSTRAP_ALLOWED_USER_ID") ?? "";
 // Exact trusted browser origin; no wildcard CORS. Never commit the value.
