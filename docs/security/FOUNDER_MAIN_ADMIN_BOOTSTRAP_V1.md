@@ -29,7 +29,8 @@ The Founder identity should remain in the audit/history record even if administr
 - No organization membership for the first account was found in the prior read-only review.
 - public.current_access_context_v1() is absent.
 - public.platform_owner_grant_v1() and related Owner grant/revoke RPCs are absent.
-- public.module_audit_logs already exists, allows organization_id to be NULL, and has an append-only trigger that rejects UPDATE/DELETE. It has actor_user_id, action, resource_type, resource_id, old_values, new_values, request_id and created_at fields. Its current read policy is organization-scoped, so platform events with NULL organization_id are not exposed through the ordinary authenticated read path.
+- public.module_audit_logs already exists and is append-only; it is organization-scoped and suitable for the initial organization bootstrap event.
+- public.platform_audit_logs is absent in Production, but the existing platform_owner_management_v1 draft defines a separate append-only platform audit table with actor, target, action, reason and before/after JSON. The V3 Founder bootstrap must be ordered after that draft.
 - platform_admin_roles has a CHECK constraint allowing platform_owner, platform_admin, security_admin, support_admin.
 - A partial unique index enforces at most one active platform_owner.
 - RLS policy platform_admin_roles_deny_client_access denies direct anon/authenticated table access.
@@ -97,7 +98,7 @@ Review SECURITY DEFINER necessity carefully. If used, use a non-exposed private 
 
 ## 6. Audit requirements
 
-Reuse public.module_audit_logs for the first platform bootstrap event only after verifying its NULL-organization insert path and existing constraints in a test environment; do not create a duplicate platform audit table without a demonstrated need. Record at minimum:
+Use the dedicated public.platform_audit_logs table defined by platform_owner_management_v1 for platform_owner.granted, with the Founder designation ID and Main Admin title in new_values. Also write the organization bootstrap event to public.module_audit_logs with the new organization_id. Both inserts and the Founder/Owner/org records must commit or roll back together. Record at minimum:
 - event type (founder.designated / platform_owner.granted)
 - target user UUID
 - actor/system actor
@@ -141,13 +142,23 @@ Audit insert and role/founder insert must be atomic. Audit history must be appen
 
 ## 9. Current blockers before a deployable SQL migration
 
-- The existing module_audit_logs is a promising append-only audit sink for platform bootstrap because organization_id is nullable; its NULL-organization insert path and exact service-role/RPC behavior still need test verification.
+- The existing module_audit_logs is append-only and can record the organization bootstrap. The separate platform_audit_logs table must be created by the reviewed Platform Owner Management draft before the Founder bootstrap is run.
+- Existing repository drafts include a customer-aware private.current_access_context_v1() and public SECURITY INVOKER wrapper. A separate Founder extension draft now adds is_project_founder and platform_title without replacing the customer contract.
 - current_access_context_v1() and platform_owner grant/revoke RPCs are absent.
 - Organization system role keys and exact role_permissions schema/constraints still need full inspection.
 - Need inspect all RLS policies, table grants, function EXECUTE grants, and helper-function definitions.
 - Need confirm the exact Auth UUID server-side and pin it in the one-time deployment configuration; never hardcode it in public source.
 - Need write and run local/test-project migration and negative security tests before production.
 
-## 10. Release boundary
+## 10. Implementation artifacts created on feature/founder-owner-bootstrap-v1
+
+- supabase/drafts/first_project_founder_main_admin_bootstrap_v1.sql — creates a private, append-only Founder designation and a one-time service_role-only bootstrap RPC that creates Founder + Main Admin + platform_owner + organization Owner atomically.
+- supabase/drafts/founder_access_context_extension_v1.sql — extends the existing customer-aware access context with is_project_founder and platform_title.
+- supabase/functions/owner-bootstrap/index.ts — updated to call the new V1 RPC; still requires server-side allowlist secrets and is not deployed.
+- auth-preview/index.html and supabase/functions/auth-preview/index.ts — UI source and generated Edge Function source now display the database-verified Founder/Main Admin title when the access context returns it.
+
+These are source-branch drafts only. The earlier V2 draft remains unchanged for traceability and must not be used for the new Founder designation.
+
+## 11. Release boundary
 
 This branch contains a design document only. Do not apply a migration to production, grant roles, change RLS, deploy a bootstrap Edge Function, or open the Dashboard until the migration, rollback, and tests are reviewed and pass. Production changes require a separately reviewed release step.
