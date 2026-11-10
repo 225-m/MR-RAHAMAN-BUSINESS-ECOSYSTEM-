@@ -161,7 +161,7 @@ reset role;
 select pg_catalog.set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000225',false);
 select pg_catalog.set_config('request.jwt.claim.role','authenticated',false);
 set role authenticated;
-do $
+do $$
 begin
   perform public.platform_owner_revoke_v1(
     '00000000-0000-4000-8000-000000000225','CI last owner guard'
