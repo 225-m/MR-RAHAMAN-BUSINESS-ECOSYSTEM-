@@ -98,4 +98,38 @@ assert_status 403 -X POST "$FUNCTION_URL" \
   -H "Origin: $ALLOWED_ORIGIN" -H "Authorization: Bearer $access_token" \
   -H "Content-Type: application/json" -d '{}'
 
-echo "Owner Bootstrap runtime HTTP negative tests passed."
+# Missing server-side configuration must fail closed before token/RPC work.
+kill "$FUNCTION_PID" 2>/dev/null || true
+wait "$FUNCTION_PID" 2>/dev/null || true
+FUNCTION_PID=""
+sleep 1
+
+cat > "$TMP_DIR/function-missing-secret.env" <<EOF
+SUPABASE_URL=$API_URL
+SUPABASE_ANON_KEY=$ANON_KEY
+OWNER_BOOTSTRAP_ALLOWED_USER_ID=$ALLOWED_USER_ID
+OWNER_BOOTSTRAP_ALLOWED_ORIGIN=$ALLOWED_ORIGIN
+EOF
+
+env -u SUPABASE_SERVICE_ROLE_KEY supabase functions serve owner-bootstrap \
+  --no-verify-jwt --env-file "$TMP_DIR/function-missing-secret.env" >"$TMP_DIR/function-missing-secret.log" 2>&1 &
+FUNCTION_PID=$!
+
+ready=0
+for _ in $(seq 1 40); do
+  code="$(curl -sS -o "$TMP_DIR/ready-missing-secret.body" -w '%{http_code}' \
+    -H "Origin: $ALLOWED_ORIGIN" "$FUNCTION_URL" || true)"
+  if [[ "$code" == "405" ]]; then ready=1; break; fi
+  sleep 1
+done
+if [[ "$ready" != "1" ]]; then
+  cat "$TMP_DIR/function-missing-secret.log"
+  echo "Edge Function with missing service secret did not become ready" >&2
+  exit 1
+fi
+
+# Config validation occurs before auth and any service-role RPC. Missing key => 503.
+assert_status 503 -X POST "$FUNCTION_URL" \
+  -H "Origin: $ALLOWED_ORIGIN" -H "Content-Type: application/json" -d '{}'
+
+echo "Owner Bootstrap runtime HTTP negative and fail-closed configuration tests passed."
