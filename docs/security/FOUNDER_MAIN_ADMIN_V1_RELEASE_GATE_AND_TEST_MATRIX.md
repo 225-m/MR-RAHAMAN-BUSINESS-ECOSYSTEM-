@@ -97,6 +97,35 @@ The Founder extension replaces the private implementation of `current_access_con
 | FND-19 | Bootstrap secret/Service Role key absent | Function fails closed |
 | FND-20 | After successful bootstrap, endpoint and one-time secret removed | Further bootstrap attempts impossible |
 
+## 4A. Automated local CI pipeline (added 10 Nov 2026)
+
+The development branch now contains:
+- `.github/workflows/founder-bootstrap-security.yml`
+- `supabase/tests/founder_bootstrap_source.test.mjs`
+- `supabase/tests/founder_bootstrap_v1.integration.sql`
+
+The workflow is designed to run source assertions, Deno type-checking, start a disposable local Supabase stack, reset it from committed migrations, apply the four reviewed draft SQL files in order, and execute positive/negative SQL tests. The SQL integration test includes:
+- unverified Auth identity rejection;
+- platform-audit and module-audit failure atomicity (no partial Founder/Owner/organization rows);
+- one-time bootstrap success and replay rejection;
+- 41 permissions and 16 module catalogue checks, including no orphan permission module keys;
+- Founder/Main Admin access-context verification;
+- authenticated direct-RPC denial;
+- last active Platform Owner revoke protection.
+
+**Execution status:** workflow and test sources are committed, but GitHub Actions currently reports no status checks for the latest test commit. Therefore no CI test is claimed as passed yet. Run the workflow from GitHub Actions (or trigger a new push to this branch) and review its job logs before treating the tests as passed.
+
+The local CI database is ephemeral and is not a hosted Staging project. It must never be confused with the Production database.
+
+## 4B. Remaining validation blockers
+
+- The Edge Function dependency currently uses `npm:@supabase/supabase-js@2` without an exact version pin; pin and re-run Deno checks before deployment.
+- The Edge Function currently supports one exact allowlisted Origin. Confirm the final production origin before configuring staging secrets.
+- Runtime HTTP tests for wrong identity, disallowed origin, missing secrets, and concurrent requests are not yet executed.
+- Browser and Android live-session tests remain pending.
+- A separate hosted Staging project/branch has not been created; no paid compute or project was provisioned.
+- Production Founder Bootstrap remains blocked pending all staging/CI results and a separate release decision.
+
 ## 5. Read-only preflight SQL
 
 Run only in the intended staging database after applying the draft migrations:
