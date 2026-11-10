@@ -28,8 +28,8 @@ The Founder identity should remain in the audit/history record even if administr
 - There is no existing platform_owner row.
 - No organization membership for the first account was found in the prior read-only review.
 - public.current_access_context_v1() is absent.
-- public.platform_audit_logs is absent.
 - public.platform_owner_grant_v1() and related Owner grant/revoke RPCs are absent.
+- public.module_audit_logs already exists, allows organization_id to be NULL, and has an append-only trigger that rejects UPDATE/DELETE. It has actor_user_id, action, resource_type, resource_id, old_values, new_values, request_id and created_at fields. Its current read policy is organization-scoped, so platform events with NULL organization_id are not exposed through the ordinary authenticated read path.
 - platform_admin_roles has a CHECK constraint allowing platform_owner, platform_admin, security_admin, support_admin.
 - A partial unique index enforces at most one active platform_owner.
 - RLS policy platform_admin_roles_deny_client_access denies direct anon/authenticated table access.
@@ -97,7 +97,7 @@ Review SECURITY DEFINER necessity carefully. If used, use a non-exposed private 
 
 ## 6. Audit requirements
 
-Create or reuse a properly designed platform audit table only after checking existing audit schema patterns. Record at minimum:
+Reuse public.module_audit_logs for the first platform bootstrap event only after verifying its NULL-organization insert path and existing constraints in a test environment; do not create a duplicate platform audit table without a demonstrated need. Record at minimum:
 - event type (founder.designated / platform_owner.granted)
 - target user UUID
 - actor/system actor
@@ -141,7 +141,7 @@ Audit insert and role/founder insert must be atomic. Audit history must be appen
 
 ## 9. Current blockers before a deployable SQL migration
 
-- platform_audit_logs does not currently exist; inspect existing audit tables and conventions before designing/reusing one.
+- The existing module_audit_logs is a promising append-only audit sink for platform bootstrap because organization_id is nullable; its NULL-organization insert path and exact service-role/RPC behavior still need test verification.
 - current_access_context_v1() and platform_owner grant/revoke RPCs are absent.
 - Organization system role keys and exact role_permissions schema/constraints still need full inspection.
 - Need inspect all RLS policies, table grants, function EXECUTE grants, and helper-function definitions.
