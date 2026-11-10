@@ -1,4 +1,4 @@
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.119.0";
 
 const URL = Deno.env.get("SUPABASE_URL") ?? "";
 const ANON = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
