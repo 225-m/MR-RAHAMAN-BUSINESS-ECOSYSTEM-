@@ -164,6 +164,25 @@ begin
 
   perform pg_catalog.pg_advisory_xact_lock(73021, 1);
 
+  -- The current schema permits at most one active platform_owner. Never
+  -- revoke that final active assignment; ownership must be transferred
+  -- atomically through platform_owner_grant_v1 instead.
+  if exists (
+    select 1 from public.platform_admin_roles par
+    where par.user_id = p_target_user_id
+      and par.role_key = 'platform_owner'
+      and par.revoked_at is null
+      and (par.expires_at is null or par.expires_at > v_revoked_at)
+  ) and (
+    select count(*) from public.platform_admin_roles par
+    where par.role_key = 'platform_owner'
+      and par.revoked_at is null
+      and (par.expires_at is null or par.expires_at > v_revoked_at)
+  ) <= 1 then
+    raise exception 'Cannot revoke the last active Platform Owner; use the audited ownership-transfer RPC'
+      using errcode = '55000';
+  end if;
+
   for v_role in
     select par.id
     from public.platform_admin_roles par
