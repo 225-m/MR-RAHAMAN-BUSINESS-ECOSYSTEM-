@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="bn">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#102a43">
+<title>Admin Dashboard Preview · MR RAHAMAN</title>
+<style>
+:root{--navy:#102a43;--blue:#1769aa;--bg:#f3f6fa;--ink:#172b4d;--muted:#627d98;--line:#d9e2ec;--amber:#9a6700;--amberbg:#fff7df;--green:#16845b}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif}
+header{background:var(--navy);color:white;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-weight:800;font-size:18px}.brand small{display:block;font-size:11px;font-weight:400;color:#c5d9ed}
+main{max-width:1180px;margin:22px auto;padding:0 14px}.warning{background:var(--amberbg);border:1px solid #e7c76a;border-radius:12px;padding:14px;margin-bottom:16px;color:#674800}
+.layout{display:grid;grid-template-columns:230px 1fr;gap:14px}.side,.panel,.tile{background:white;border:1px solid var(--line);border-radius:14px}
+.side{padding:12px;height:max-content}.nav{width:100%;text-align:left;border:0;background:transparent;padding:12px;border-radius:9px;color:var(--ink);font:inherit;font-weight:650;cursor:pointer}.nav.active{background:#eaf4fc;color:var(--blue)}
+.content{min-width:0}.panel{padding:20px;margin-bottom:14px}.muted{color:var(--muted);font-size:13px;line-height:1.6}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.tile{padding:16px}.tile span{font-size:23px}.tile b{display:block;margin:8px 0 4px}.status{display:inline-block;border-radius:30px;background:#fff0d1;color:#805600;padding:5px 10px;font-size:11px;font-weight:800}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:11px;border-bottom:1px solid var(--line)}th{color:var(--muted)}
+.hidden{display:none!important}.foot{padding:20px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:420px){.grid{grid-template-columns:1fr}.panel{padding:15px}.side{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header><div class="brand">MR RAHAMAN<small>Business Ecosystem · Admin Workspace</small></div><span class="status">PREVIEW ONLY · NO ADMIN SESSION</span></header>
+<main>
+<div class="warning"><b>নিরাপদ Preview — বাস্তব Admin Access নয়</b><div class="muted">এই পৃষ্ঠায় কোনো Production তথ্য লোড হয় না, কোনো Role/Permission পরিবর্তন করা যায় না এবং কোনো Admin action চালানো যায় না। বাস্তব Dashboard কেবল Database-এর সক্রিয় Role ও Permission যাচাইয়ের পর খুলবে।</div></div>
+<div class="layout">
+<aside class="side" aria-label="Admin preview navigation">
+<button class="nav active" data-tab="overview">🏠 Overview</button>
+<button class="nav" data-tab="identity">🪪 Founder Identity</button>
+<button class="nav" data-tab="users">👥 Users & Roles</button>
+<button class="nav" data-tab="modules">🧩 Modules</button>
+<button class="nav" data-tab="audit">📋 Audit Log</button>
+<button class="nav" data-tab="security">🛡️ Security</button>
+</aside>
+<div class="content">
+<section class="panel tabview" id="overview"><h1>Admin Dashboard</h1><p class="muted">Platform administration workspace preview. বাস্তব ডেটা বা অনুমতি এখনো সংযুক্ত নয়।</p><div class="grid">
+<div class="tile"><span>🏢</span><b>Organizations</b><small class="muted">Live data: unavailable</small></div>
+<div class="tile"><span>👥</span><b>Users</b><small class="muted">Live data: unavailable</small></div>
+<div class="tile"><span>🧩</span><b>Platform Modules</b><small class="muted">Registry preview only</small></div>
+<div class="tile"><span>🔐</span><b>Access Requests</b><small class="muted">Approval workflow pending</small></div>
+<div class="tile"><span>📋</span><b>Audit Events</b><small class="muted">No live audit feed</small></div>
+<div class="tile"><span>🛡️</span><b>Security Health</b><small class="muted">Release gate not passed</small></div>
+</div></section>
+<section class="panel tabview hidden" id="identity"><h2>Founder Identity Verification</h2><p class="muted">ইমেইল যাচাই এবং Founder designation আলাদা বিষয়। পরিচয় যাচাইয়ের পরও Database-এ সক্রিয় Platform Owner/Founder record না থাকলে Admin access দেওয়া হবে না।</p><table><tr><th>পরীক্ষা</th><th>নীতি</th><th>Preview অবস্থা</th></tr><tr><td>Email identity</td><td>Supabase Auth verified</td><td>Account lookup required</td></tr><tr><td>Founder designation</td><td>Trusted server-side bootstrap</td><td>Not provisioned</td></tr><tr><td>Platform Owner role</td><td>Active database role</td><td>Not provisioned</td></tr><tr><td>Dashboard permission</td><td>Explicit permission check</td><td>Not granted</td></tr></table></section>
+<section class="panel tabview hidden" id="users"><h2>Users & Roles</h2><p class="muted">প্রস্তাবিত পরিচালনা: User lookup, role assignment request, independent approval, audited apply, permission revalidation।</p><div class="grid"><div class="tile"><b>Role assignment</b><small class="muted">Preview only · disabled</small></div><div class="tile"><b>Role revocation</b><small class="muted">Preview only · disabled</small></div><div class="tile"><b>Last Owner guard</b><small class="muted">Must prevent removing final active Owner</small></div></div></section>
+<section class="panel tabview hidden" id="modules"><h2>Module Management</h2><p class="muted">প্রতিটি Module lifecycle হবে Request → Independent Approval → Apply। সরাসরি enable/disable action থাকবে না।</p><table><tr><th>ধাপ</th><th>নিয়ন্ত্রণ</th><th>অবস্থা</th></tr><tr><td>Request</td><td>Permission-gated request</td><td>Preview</td></tr><tr><td>Approval</td><td>Requester থেকে আলাদা approver</td><td>Preview</td></tr><tr><td>Apply</td><td>Approved request + audit</td><td>Preview</td></tr></table></section>
+<section class="panel tabview hidden" id="audit"><h2>Audit Log</h2><p class="muted">প্রতিটি access grant/revoke, role change, module approval/apply এবং bootstrap event append-only audit trail-এ সংরক্ষণ করতে হবে।</p><span class="status">LIVE AUDIT FEED NOT CONNECTED</span></section>
+<section class="panel tabview hidden" id="security"><h2>Security & Release Gate</h2><ul><li>Founder bootstrap one-time ও service-role-only</li><li>Employee self-promotion নিষিদ্ধ</li><li>শেষ সক্রিয় Owner সুরক্ষিত</li><li>Access grant ও revoke audit-এ বাধ্যতামূলক</li><li>Browser-এ service-role secret নিষিদ্ধ</li><li>Staging positive/negative tests পাস না করা পর্যন্ত Production release বন্ধ</li></ul><span class="status">PRODUCTION RELEASE BLOCKED</span></section>
+</div></div>
+</main><div class="foot">MR RAHAMAN Business Ecosystem · Admin Dashboard Preview · No live operations</div>
+<script>
+document.querySelectorAll("[data-tab]").forEach(button=>button.addEventListener("click",()=>{
+ const id=button.dataset.tab;
+ document.querySelectorAll(".tabview").forEach(section=>section.classList.toggle("hidden",section.id!==id));
+ document.querySelectorAll("[data-tab]").forEach(item=>item.classList.toggle("active",item===button));
+}));
+</script>
+</body></html>
