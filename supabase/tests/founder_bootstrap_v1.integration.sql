@@ -83,8 +83,7 @@ select public.bootstrap_first_project_founder_main_admin_v1(
 
 select pg_catalog.set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000225',false);
 select pg_catalog.set_config('request.jwt.claim.role','authenticated',false);
-set role authenticated;
-do $$
+do $
 declare
   v_context jsonb;
 begin
@@ -170,9 +169,10 @@ begin
 exception when sqlstate '55000' then
   if sqlerrm not like 'Cannot revoke the last active Platform Owner%' then raise; end if;
 end;
-$$;
+$;
+reset role;
 
-do $$
+do $
 begin
   if (select count(*) from public.platform_admin_roles
       where role_key='platform_owner' and revoked_at is null) <> 1 then
