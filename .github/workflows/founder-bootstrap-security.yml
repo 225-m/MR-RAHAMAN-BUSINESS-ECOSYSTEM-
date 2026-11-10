@@ -1,4 +1,5 @@
 name: Founder Bootstrap Security Gate
+run-name: Founder Bootstrap Security Gate - ${{ github.ref_name }}
 
 on:
   push:
