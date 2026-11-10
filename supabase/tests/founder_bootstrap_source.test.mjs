@@ -30,10 +30,10 @@ test("Edge Function pins exact origin and does not wildcard CORS", () => {
 });
 
 test("service role secret is server-side and request body identity is never trusted", () => {
-  assert.match(edge, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(edge, /OWNER_BOOTSTRAP_SERVICE_ROLE_KEY/);
   assert.match(edge, /admin\.rpc\("bootstrap_first_project_founder_main_admin_v1"/);
   assert.doesNotMatch(edge, /req\.json\(/);
-  assert.doesNotMatch(edge, /Deno\.env\.get\(["']SUPABASE_SERVICE_ROLE_KEY["']\).*console\./s);
+  assert.doesNotMatch(edge, /Deno\.env\.get\(["']OWNER_BOOTSTRAP_SERVICE_ROLE_KEY["']\).*console\./s);
 });
 
 test("database bootstrap is service-role-only, serialized, one-time and audited", () => {
