@@ -16,7 +16,8 @@ Supabase project: `pojhrvmuamdejlutxpng`
 6. Configure the one-time Edge Function secrets server-side:
    - `OWNER_BOOTSTRAP_ALLOWED_USER_ID`: independently verified Auth UUID
    - `OWNER_BOOTSTRAP_ALLOWED_ORIGIN`: exact allowed origin
-   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+   - Supabase-managed `SUPABASE_URL` and `SUPABASE_ANON_KEY`
+   - `OWNER_BOOTSTRAP_SERVICE_ROLE_KEY`: dedicated server-side secret (never expose to clients)
 7. Deploy Edge Function only to staging with JWT verification enabled.
 8. Execute all positive and negative tests below; inspect database rows and both audit streams.
 9. Disable the bootstrap endpoint and rotate/remove the one-time secrets.
@@ -113,7 +114,7 @@ The workflow is designed to run source assertions, Deno type-checking, start a d
 - authenticated direct-RPC denial;
 - last active Platform Owner revoke protection.
 
-**Execution status (10 Nov 2026):** GitHub Actions run [42788522536](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42788522536) completed with `success`. All steps passed: static source tests, Deno type-check, disposable local Supabase startup/reset, Edge Function HTTP negative tests, reviewed draft SQL application, positive/negative database integration tests, and cleanup. This is an ephemeral local CI database, not hosted Staging or Production.
+**Execution status (10 Nov 2026):** GitHub Actions run [42790173301](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42790173301) completed with `success` for the source, Deno, HTTP negative, and SQL integration suite then present. Run [42790846159](https://github.com/225-m/MR-RAHAMAN-BUSINESS-ECOSYSTEM-/actions/runs/42790846159) failed at the new missing-service-secret HTTP assertion: the local Edge Runtime auto-injects reserved `SUPABASE_*` values, so removing that variable from the test process did not simulate an absent key; the endpoint returned 401 before the intended missing-secret assertion. The implementation and test now use a dedicated `OWNER_BOOTSTRAP_SERVICE_ROLE_KEY` name so this failure mode can be isolated. The concurrency race test has not yet passed. All tests run only in ephemeral local CI, not hosted Staging or Production.
 
 The local CI database is ephemeral and is not a hosted Staging project. It must never be confused with the Production database.
 
@@ -121,7 +122,7 @@ The local CI database is ephemeral and is not a hosted Staging project. It must 
 
 - The Edge Function dependency is pinned to `npm:@supabase/supabase-js@2.119.0`; run #16 passed Deno type-check and static source tests against this branch.
 - The Edge Function currently supports one exact allowlisted Origin. The local HTTP suite verified rejection of a disallowed Origin, allowed-origin preflight, unsupported method, missing bearer token, invalid bearer token, and a valid JWT belonging to a confirmed but non-allowlisted user.
-- Runtime tests for missing server secrets and concurrent bootstrap HTTP requests remain outstanding; database-level one-time/replay and transaction tests passed in the local integration suite.
+- Runtime tests for the dedicated missing bootstrap service secret and concurrent bootstrap HTTP requests remain outstanding pending a clean CI run; database-level one-time/replay and transaction tests passed in prior local integration runs.
 - Browser and Android live-session tests remain pending; this session has no available live browser/device automation capability.
 - A separate hosted Staging project/branch has not been created; no paid compute or project was provisioned. Do not use the unrelated `chnkwdxrjtfrzemviems` project as staging.
 - Production Founder Bootstrap remains blocked pending all staging/CI results and a separate release decision.
