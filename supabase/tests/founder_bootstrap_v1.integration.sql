@@ -81,6 +81,9 @@ select public.bootstrap_first_project_founder_main_admin_v1(
   '00000000-0000-4000-8000-000000000225'
 );
 
+select pg_catalog.set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000225',false);
+select pg_catalog.set_config('request.jwt.claim.role','authenticated',false);
+set role authenticated;
 do $$
 declare
   v_context jsonb;
@@ -117,9 +120,6 @@ begin
       where action='INITIAL_PROJECT_FOUNDER_MAIN_ADMIN_BOOTSTRAP_COMPLETED') <> 1 then
     raise exception 'Expected module bootstrap audit event';
   end if;
-  perform pg_catalog.set_config('request.jwt.claim.sub','00000000-0000-4000-8000-000000000225',false);
-  perform pg_catalog.set_config('request.jwt.claim.role','authenticated',false);
-  execute 'set role authenticated';
   v_context := public.current_access_context_v1();
   if v_context->>'is_project_founder' <> 'true'
      or v_context->>'is_platform_owner' <> 'true'
@@ -127,7 +127,7 @@ begin
     raise exception 'Founder access context is incorrect: %', v_context;
   end if;
 end;
-$;
+$$;
 reset role;
 select pg_catalog.set_config('request.jwt.claim.role','service_role',false);
 
