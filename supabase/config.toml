@@ -23,3 +23,7 @@ enable_signup = true
 enabled = true
 double_confirm_changes = false
 enable_confirmations = false
+
+# First-owner bootstrap must require a valid Supabase Auth JWT.
+[functions.owner-bootstrap]
+verify_jwt = true
