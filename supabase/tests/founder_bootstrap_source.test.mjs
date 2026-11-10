@@ -9,6 +9,11 @@ const bootstrap = read("../drafts/first_project_founder_main_admin_bootstrap_v1.
 const owner = read("../drafts/platform_owner_management_v1.sql");
 const founder = read("../drafts/founder_access_context_extension_v1.sql");
 
+test("Edge Function uses an exact Supabase JS SDK version", () => {
+  assert.ok(edge.includes("npm:@supabase/supabase-js@2.119.0"));
+  assert.ok(!edge.includes("npm:@supabase/supabase-js@2\";"));
+});
+
 test("Edge Function requires platform JWT verification", () => {
   assert.match(config, /\[functions\.owner-bootstrap\]\s*verify_jwt\s*=\s*true/);
 });
