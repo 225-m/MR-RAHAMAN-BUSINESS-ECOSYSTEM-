@@ -24,7 +24,7 @@ trap cleanup EXIT
 cat > "$TMP_DIR/function.env" <<EOF
 SUPABASE_URL=$API_URL
 SUPABASE_ANON_KEY=$ANON_KEY
-SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
+OWNER_BOOTSTRAP_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
 OWNER_BOOTSTRAP_ALLOWED_USER_ID=$ALLOWED_USER_ID
 OWNER_BOOTSTRAP_ALLOWED_ORIGIN=$ALLOWED_ORIGIN
 EOF
@@ -98,7 +98,7 @@ assert_status 403 -X POST "$FUNCTION_URL" \
   -H "Origin: $ALLOWED_ORIGIN" -H "Authorization: Bearer $access_token" \
   -H "Content-Type: application/json" -d '{}'
 
-# Missing server-side configuration must fail closed before token/RPC work.
+# Missing dedicated bootstrap service secret must fail closed before token/RPC work.
 kill "$FUNCTION_PID" 2>/dev/null || true
 wait "$FUNCTION_PID" 2>/dev/null || true
 FUNCTION_PID=""
@@ -111,7 +111,7 @@ OWNER_BOOTSTRAP_ALLOWED_USER_ID=$ALLOWED_USER_ID
 OWNER_BOOTSTRAP_ALLOWED_ORIGIN=$ALLOWED_ORIGIN
 EOF
 
-env -u SUPABASE_SERVICE_ROLE_KEY supabase functions serve owner-bootstrap \
+env -u OWNER_BOOTSTRAP_SERVICE_ROLE_KEY supabase functions serve owner-bootstrap \
   --no-verify-jwt --env-file "$TMP_DIR/function-missing-secret.env" >"$TMP_DIR/function-missing-secret.log" 2>&1 &
 FUNCTION_PID=$!
 
