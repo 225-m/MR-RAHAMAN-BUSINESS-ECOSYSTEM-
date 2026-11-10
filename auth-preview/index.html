@@ -271,6 +271,8 @@ async function refreshUser() {
   }
   currentAccessContext=accessData;
   const isPlatformOwner=accessData.is_platform_owner===true;
+  const isProjectFounder=accessData.is_project_founder===true;
+  const platformTitle=typeof accessData.platform_title==="string" ? accessData.platform_title : null;
   const hasDashboardPermission=Array.isArray(accessData.organizations) &&
     accessData.organizations.some(org=>Array.isArray(org.permissions) &&
       org.permissions.includes("dashboard.read"));
@@ -280,8 +282,11 @@ async function refreshUser() {
   $("customerView").classList.toggle("hidden",!canEnterCustomer);
   $("accessPendingView").classList.toggle("hidden",canEnterWorkspace||canEnterCustomer);
   $("headerStatus").textContent=canEnterWorkspace
-    ? (isPlatformOwner ? "Platform Owner Verified" : "Organization Access Verified")
+    ? (isProjectFounder && platformTitle ? platformTitle : isPlatformOwner ? "Platform Owner Verified" : "Organization Access Verified")
     : canEnterCustomer ? "Customer Access Verified" : "Email Verified · Access Pending";
+  if(canEnterWorkspace && isProjectFounder && platformTitle) {
+    $("signedInAs").textContent=[currentUser?.email||"",platformTitle].filter(Boolean).join(" · ");
+  }
   if(canEnterCustomer) {
     const profile=accessData.customer_profile||{};
     $("customerSignedInAs").textContent=currentUser?.email||"";
