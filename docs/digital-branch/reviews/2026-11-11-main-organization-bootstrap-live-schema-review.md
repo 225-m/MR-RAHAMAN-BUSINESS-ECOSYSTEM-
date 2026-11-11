@@ -24,11 +24,11 @@ The current `private.has_org_permission(organization_id, permission_key)` checks
 
 The draft bootstrap grants all 41 permissions, while only active core modules are enabled and non-core modules are seeded as `disabled`. Because the permission helper ignores `organization_modules.status`, a disabled module's permissions can still evaluate as granted. This undermines the intended disabled-module boundary and can allow RLS/RPC checks to pass for a module that the organization has not enabled.
 
-**Required before Production approval:** design and test a module-aware permission evaluation rule (including null/unmapped permission module behavior, if any), or reduce the initial Owner permission grant to only permissions belonging to enabled modules. The preferred approach needs an explicit product/security decision and regression tests across all RLS/RPC consumers of `private.has_org_permission`. Do not silently change this helper as part of the bootstrap-only draft.
+**Required before Production approval:** retain the approved all-41 Owner role-permission matrix, but make the module-aware runtime gate mandatory. Effective access requires an active member, active organization, active role, explicit role-permission row, active platform registry module, and active organization module row. Disabled, missing, inactive, NULL-mapped, or unknown module state must deny access, including for Owner. No Owner bypass is permitted. The shared helper change must be regression-tested across every RLS/RPC consumer.
 
-## Human approval required
+## Human decision — APPROVED 2026-11-11
 
-The proposed 41-permission Owner matrix is broad. The founder must explicitly approve whether Owner receives all current permissions, including optional-module permissions, or only permissions for enabled modules. A future module activation must not become an authorization grant by itself without an approved role-permission policy.
+The founder explicitly selected **all 41 current organization-scoped permissions** for the Main Owner. Platform-level grants remain separate in `platform_admin_roles`. The 41 role-permission rows are stored for Owner, but they do not override module state: optional-module permissions remain unusable while their organization module is disabled. Re-enabling a module requires the existing approved module workflow; activation alone does not grant permissions to other members. This decision is recorded in `docs/digital-branch/decisions/2026-11-11-main-owner-41-permissions-module-gate.md`.
 
 ## Test status and remaining gates
 
