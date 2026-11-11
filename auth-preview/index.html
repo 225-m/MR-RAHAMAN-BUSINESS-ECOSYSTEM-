@@ -39,6 +39,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
 .service-list b{font-size:13px}.service-list small{margin:5px 0 0 28px}
 @media(max-width:720px){.summary-grid,.branch-feature-grid,.module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.service-list{grid-template-columns:1fr}}
 @media(max-width:420px){.summary-grid,.branch-feature-grid,.module-grid{grid-template-columns:1fr}.nav-btn{flex:1 1 calc(50% - 8px)}}
+.branch-table-wrap{overflow-x:auto;margin-top:12px}#branchListTable{width:100%;border-collapse:collapse;font-size:13px}#branchListTable th,#branchListTable td{padding:10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}#branchListTable th{color:var(--muted);font-weight:700}#branchListStatus{margin:8px 0;color:var(--muted);font-size:13px}
 
 </style>
 </head>
@@ -114,7 +115,12 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
     <div class="feature-tile"><span>📊</span><b>Branch Monitoring</b><small>ব্রাঞ্চভিত্তিক কার্যক্রম ও রিপোর্ট</small></div>
     <div class="feature-tile"><span>🔐</span><b>Branch Security</b><small>অনুমতি, অনুমোদন ও Audit Log</small></div>
    </div>
-   <div class="notice">এই ধাপে শুধু নেভিগেশন ও UI কাঠামো তৈরি হয়েছে। ব্রাঞ্চ তৈরি/সম্পাদনার ফর্ম, বাংলাদেশ লোকেশন ডেটা, Supabase টেবিল ও RLS এখনো যুক্ত হয়নি।</div>
+   <div class="card" id="branchListPanel">
+   <div class="section-heading"><div><h3>📋 Registered Branches</h3><p class="muted">অনুমোদিত Organization-এর ব্রাঞ্চ তালিকা — read-only view</p></div><span class="status-chip">DATABASE LINK</span></div>
+   <p id="branchListStatus" role="status" aria-live="polite">Database access যাচাই করা হচ্ছে…</p>
+   <div class="branch-table-wrap"><table id="branchListTable" class="hidden"><thead><tr><th>Branch Code</th><th>Branch Name</th><th>Status</th><th>Phone</th></tr></thead><tbody id="branchListBody"></tbody></table></div>
+  </div>
+  <div class="notice">Branch database, RLS এবং RPC backend আগে থেকেই provisioned। বাস্তব Branch operations চালুর আগে active Organization, Owner Membership, Branch Management activation এবং permission যাচাই প্রয়োজন। এই অংশ এখন read-only; কোনো Production data পরিবর্তন করে না।</div>
   </div>
  </section>
  <section id="view-modules" class="workspace-view hidden">
@@ -205,6 +211,67 @@ let currentUser = null;
 let currentAccessContext = null;
 let recoveryMode = false;
 
+async function loadBranchWorkspace(accessContext) {
+  const status = $("branchListStatus");
+  const table = $("branchListTable");
+  const body = $("branchListBody");
+  if (!status || !table || !body) return;
+  body.replaceChildren();
+  table.classList.add("hidden");
+  const organizations = Array.isArray(accessContext?.organizations) ? accessContext.organizations : [];
+  if (!organizations.length) {
+    status.textContent = "এখনো কোনো Active Organization তৈরি হয়নি। প্রথমে নিরাপদ Organization Provisioning ও Owner Membership সম্পন্ন করতে হবে।";
+    return;
+  }
+  const readableOrganizations = organizations.filter(org =>
+    Array.isArray(org.permissions) && org.permissions.includes("branch.read")
+  );
+  if (!readableOrganizations.length) {
+    status.textContent = "আপনার Active Organization আছে, কিন্তু Branch Read Permission পাওয়া যায়নি। Role/Permission যাচাই প্রয়োজন।";
+    return;
+  }
+  status.textContent = "অনুমোদিত Organization-এর Branch তালিকা লোড হচ্ছে…";
+  const results = await Promise.all(readableOrganizations.map(async org => {
+    const { data, error } = await sb.rpc("branch_list_v1", {
+      p_organization_id: org.id,
+      p_search: null,
+      p_status: null,
+      p_limit: 100,
+      p_offset: 0
+    });
+    return { org, data, error };
+  }));
+  const failed = results.some(result => result.error);
+  let total = 0;
+  for (const result of results) {
+    if (result.error || !Array.isArray(result.data)) continue;
+    for (const branch of result.data) {
+      const tr = document.createElement("tr");
+      const values = [
+        branch.branch_code || "—",
+        branch.name || "Unnamed branch",
+        branch.status || "unknown",
+        branch.phone || "—"
+      ];
+      for (const value of values) {
+        const td = document.createElement("td");
+        td.textContent = String(value);
+        tr.appendChild(td);
+      }
+      body.appendChild(tr);
+      total += 1;
+    }
+  }
+  if (total > 0) {
+    table.classList.remove("hidden");
+    status.textContent = total + "টি Branch পাওয়া গেছে। তালিকাটি read-only।";
+  } else if (failed) {
+    status.textContent = "Branch list RPC থেকে তথ্য পাওয়া যায়নি। Permission, module activation এবং RPC access যাচাই প্রয়োজন।";
+  } else {
+    status.textContent = "অনুমোদিত Organization-এ এখনো কোনো Branch নিবন্ধিত নেই।";
+  }
+}
+
 function showMessage(text, kind="info") {
   const el=$("authMessage"); el.textContent=text;
   el.className="notice"+(kind==="error"?" err":kind==="ok"?" ok":"");
@@ -230,6 +297,7 @@ document.querySelectorAll("[data-view]").forEach(button=>button.addEventListener
   const target=button.dataset.view;
   document.querySelectorAll(".workspace-view").forEach(view=>view.classList.toggle("hidden",view.id!=="view-"+target));
   document.querySelectorAll("[data-view]").forEach(item=>item.classList.toggle("active",item===button));
+  if(target==="branch" && currentAccessContext) loadBranchWorkspace(currentAccessContext);
 }));
 
 function displayApp(user) {
@@ -270,6 +338,7 @@ async function refreshUser() {
     return;
   }
   currentAccessContext=accessData;
+  await loadBranchWorkspace(accessData);
   const isPlatformOwner=accessData.is_platform_owner===true;
   const isProjectFounder=accessData.is_project_founder===true;
   const platformTitle=typeof accessData.platform_title==="string" ? accessData.platform_title : null;
