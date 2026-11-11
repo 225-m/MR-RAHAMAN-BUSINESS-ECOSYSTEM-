@@ -1,0 +1,60 @@
+name: Authentication Preview Checks
+
+on:
+  push:
+    branches:
+      - feature/branch-module-v1
+    paths:
+      - 'auth-preview/**'
+      - '.github/workflows/auth-preview-check.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'auth-preview/**'
+      - '.github/workflows/auth-preview-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  static-auth-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate authentication preview
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const vm = require('node:vm');
+          const html = fs.readFileSync('auth-preview/index.html', 'utf8');
+          const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
+            .map(match => match[1]).filter(Boolean);
+          if (!scripts.length) throw new Error('No inline application script found');
+          for (const script of scripts) new vm.Script(script);
+
+          const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(match => match[1]);
+          const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
+          if (duplicates.length) throw new Error('Duplicate HTML IDs: ' + [...new Set(duplicates)].join(', '));
+
+          const references = [...html.matchAll(/\$\(["']([^"']+)["']\)/g)].map(match => match[1]);
+          const missing = [...new Set(references.filter(id => !ids.includes(id)))];
+          if (missing.length) throw new Error('Missing DOM IDs: ' + missing.join(', '));
+
+          const phoneOtp = /phoneVerifyPane|sendPhoneOtpBtn|verifyPhoneOtpBtn|phoneOtp|phone_pending|phone_confirmed_at|normalizeBDPhone|regPhone|মোবাইল OTP/i;
+          if (phoneOtp.test(html)) throw new Error('Phone OTP flow must remain removed');
+
+          for (const required of ['signInWithPassword', 'signUp(', 'resetPasswordForEmail', 'current_access_context_v1', 'dashboard.read', 'is_platform_owner']) {
+            if (!html.includes(required)) throw new Error('Required auth/access feature missing: ' + required);
+          }
+
+          if (/SUPABASE_SERVICE_ROLE_KEY\s*=\s*['"][^'"]+['"]|['"]sb_secret_[A-Za-z0-9_-]{10,}['"]/i.test(html)) {
+            throw new Error('Server secret detected in browser source');
+          }
+          console.log('PASS: JavaScript syntax, unique DOM IDs, DOM references, email-only auth, database gate, and no browser secrets.');
+          NODE

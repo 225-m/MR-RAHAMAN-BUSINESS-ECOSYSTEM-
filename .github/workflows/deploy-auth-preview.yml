@@ -1,0 +1,38 @@
+name: GitHub Pages Authentication Preview Deployment
+
+on:
+  push:
+    branches:
+      - feature/branch-module-v1
+    paths:
+      - 'auth-preview/**'
+      - '.github/workflows/deploy-auth-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/feature/branch-module-v1'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload authentication preview
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: auth-preview
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
