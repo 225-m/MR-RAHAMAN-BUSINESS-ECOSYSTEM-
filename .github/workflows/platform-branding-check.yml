@@ -38,18 +38,17 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
           const vm = require('node:vm');
-          const cp = require('node:child_process');
           const files = ['auth-preview/index.html', 'branch-preview/index.html'];
           for (const file of files) {
             const html = fs.readFileSync(file, 'utf8');
-            const scripts = [...html.matchAll(/<script\\b[^>]*>([\\s\\S]*?)<\\/script>/gi)]
+            const scripts = [...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)]
               .map(match => match[1]).filter(Boolean);
             if (!scripts.length) throw new Error(file + ': no inline script');
             for (const script of scripts) new vm.Script(script, { filename: file });
-            const ids = [...html.matchAll(/\\bid=["']([^"']+)["']/g)].map(match => match[1]);
+            const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map(match => match[1]);
             const duplicates = ids.filter((id, index) => ids.indexOf(id) !== index);
             if (duplicates.length) throw new Error(file + ': duplicate IDs ' + [...new Set(duplicates)].join(','));
-            const refs = [...html.matchAll(/\\$\\(["']([^"']+)["']\\)/g)].map(match => match[1]);
+            const refs = [...html.matchAll(/\$\(["']([^"']+)["']\)/g)].map(match => match[1]);
             const missing = [...new Set(refs.filter(id => !ids.includes(id)))];
             if (missing.length) throw new Error(file + ': missing DOM IDs ' + missing.join(','));
             if (!html.includes('get_platform_branding_v1') || !html.includes('brandLogo')) {
@@ -68,7 +67,7 @@ jobs:
           for (const required of ['enable row level security', 'security invoker', 'set search_path =', 'grant execute', 'platform_branding_public_read']) {
             if (!sql.toLowerCase().includes(required)) throw new Error('Migration security check missing: ' + required);
           }
-          if (/grant\\s+(insert|update|delete|all)\\s+on\\s+table\\s+public\\.platform_branding\\s+to\\s+(anon|authenticated)/i.test(sql)) {
+          if (/grant\s+(insert|update|delete|all)\s+on\s+table\s+public\.platform_branding\s+to\s+(anon|authenticated)/i.test(sql)) {
             throw new Error('Client write grant detected on platform_branding');
           }
           console.log('PASS: inline JavaScript syntax, DOM IDs, branding RPC, access gate, SVG asset, and read-only migration checks.');
