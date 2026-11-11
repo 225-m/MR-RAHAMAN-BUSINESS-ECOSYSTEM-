@@ -36,10 +36,14 @@ jobs:
           grep -q 'signInWithPassword' index.html
           grep -q 'current_access_context_v1' index.html
           ! grep -Eqi 'service_role|sb_secret_' index.html
+      - name: Stage only the public website
+        run: |
+          mkdir -p public
+          cp index.html public/index.html
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: public
       - name: Deploy website
         id: deployment
         uses: actions/deploy-pages@v4
