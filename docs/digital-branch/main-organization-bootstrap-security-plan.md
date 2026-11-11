@@ -194,3 +194,16 @@ Supabase's current Database Functions guidance recommends preferring `SECURITY I
 - [ ] Verify the RPC path with a real authenticated owner JWT and a non-owner JWT; a read-only SQL inspection is not an end-to-end authorization test.
 
 **Updated decision:** the schema constraints are largely in place, but organization bootstrap SQL and the approval-enforced module activation SQL are still draft work. No production SQL, migration, grant, or data change has been applied.
+
+
+### 7.6 Latest migration and Security Advisor review
+
+The current migration history contains the security baseline, branch backend/RPC hardening, founder identity verification, independent approval engine, last-owner protection, authorization-helper hardening and branding catalogue migrations. It does **not** contain an organization bootstrap migration or an approval-enforced branch-module activation migration.
+
+The latest Security Advisor review returned two findings:
+
+- **INFO — RLS enabled without policy:** `private.platform_founder_profiles` has RLS enabled and no direct policies. This is consistent with a private identity table intended to be accessed only through narrowly scoped privileged functions; do not add a broad SELECT policy merely to silence the notice. Verify every function that reads it is appropriately restricted.
+- **WARN — Leaked Password Protection disabled:** Auth currently does not reject passwords known to be compromised. This is an Auth dashboard setting, not a schema migration. Recommend enabling it after reviewing the sign-in impact and testing the password reset/change flow; it was not changed during this work.
+
+The current Supabase CLI v3 breaking-change notice also changes hosted database commands to local-by-default and requires explicit remote targeting/confirmation for hosted changes. Any future CLI workflow must pin/verify its CLI version and explicitly target the intended project; do not run a hosted migration by relying on defaults.
+
