@@ -41,3 +41,10 @@ The proposed 41-permission Owner matrix is broad. The founder must explicitly ap
 ## Decision
 
 **HOLD — do not convert to a numbered migration, merge PR #5, or apply to Production yet.** Resolve the module-aware authorization boundary and obtain explicit approval for the Owner permission matrix first.
+
+
+## Authorization-helper blast radius
+
+A catalog scan found the current helper is referenced by **18 database routines (including the helper and branch-access wrapper) and 11 RLS policies**. The affected paths include branch create/update/contact/settings/status/access RPCs, approval request/decision RPCs, branch list/detail/audit RPCs, and read policies for branches, approvals, members, roles, module records, invitations, and audit logs.
+
+This confirms the candidate helper change is not a narrow bootstrap-only edit. Every listed caller and policy must be regression-tested, especially branch read/write checks and approval flows. Do not replace the live helper in Production as an isolated quick fix.
