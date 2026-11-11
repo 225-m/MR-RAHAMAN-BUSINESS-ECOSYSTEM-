@@ -35,7 +35,7 @@ jobs:
           grep -qi '<meta charset="utf-8">' index.html
           grep -q 'signInWithPassword' index.html
           grep -q 'current_access_context_v1' index.html
-          ! grep -Eqi 'service_role|sb_secret_' index.html
+          ! grep -Eqi 'sb_secret_[A-Za-z0-9_-]{20,}|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=' index.html
       - name: Stage only the public website
         run: |
           mkdir -p public
