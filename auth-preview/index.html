@@ -10,7 +10,7 @@
 :root{--navy:#102a43;--blue:#1769aa;--pale:#eaf4fc;--bg:#f3f6fa;--ink:#172b4d;--muted:#627d98;--line:#d9e2ec;--green:#16845b;--red:#b83227}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans Bengali",sans-serif}
 header{background:var(--navy);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.brand{font-size:20px;font-weight:800;letter-spacing:.5px}.brand small{display:block;font-size:11px;font-weight:400;color:#c5d9ed}
+.brand{font-size:20px;font-weight:800;letter-spacing:.5px}.brand small{display:block;font-size:11px;font-weight:400;color:#c5d9ed}.brand-lockup{display:flex;align-items:center;gap:12px;min-width:0}.brand-logo{width:78px;height:58px;object-fit:contain;background:#fff;border-radius:10px;padding:3px;flex:0 0 auto}
 main{max-width:1050px;margin:26px auto;padding:0 14px}.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 6px 22px #102a4310;margin-bottom:16px}
 .auth{max-width:510px;margin:32px auto}.tabs{display:flex;gap:8px;margin:15px 0}.tab{flex:1;border:1px solid var(--line);background:#f7f9fc;padding:10px;border-radius:9px;font-weight:700}.tab.active{background:var(--pale);border-color:var(--blue);color:var(--blue)}
 label{display:block;font-size:13px;font-weight:700;margin:12px 0 5px}input{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;font:inherit;min-width:0}
@@ -43,7 +43,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
 </style>
 </head>
 <body>
-<header><div class="brand">MR RAHAMAN<small>Business Ecosystem</small></div><span id="headerStatus" class="hint" style="color:#fff">Secure Access</span></header>
+<header><div class="brand-lockup"><img class="brand-logo" id="brandLogo" src="../assets/mr-rahaman-logo.svg" alt="MR RAHAMAN Business Ecosystem logo"><div class="brand">MR RAHAMAN<small>Business Ecosystem</small></div></div><span id="headerStatus" class="hint" style="color:#fff">Secure Access</span></header>
 
 <main>
 <section id="authView" class="auth">
@@ -93,7 +93,7 @@ footer{text-align:center;color:var(--muted);font-size:12px;padding:24px}
   <button class="nav-btn" data-view="modules">🧩 Business Modules</button>
   <button class="nav-btn" data-view="platform">⚙️ Platform Services</button>
  </nav>
- <section id="view-overview" class="workspace-view">
+ <section id="view-overview" class="workspace-view"><div class="card"><div class="eyebrow">FOUNDER & PLATFORM ACCESS</div><div id="accessSummary" class="notice">ডেটাবেসের নিরাপদ Access Context যাচাই করা হবে।</div></div>
   <div class="card"><div class="eyebrow">PLATFORM FOUNDATION</div><h2>স্বাগতম MR RAHAMAN Platform-এ</h2><p class="muted">এটি নতুন Universal Business Platform-এর প্রাথমিক কাঠামো। এখনো কোনো ব্যবসায়িক ডেটা সংরক্ষণ বা পরিবর্তন করা হচ্ছে না।</p>
    <div class="summary-grid">
     <div class="summary-tile"><span>🏢</span><b>Organization</b><small>প্রতিষ্ঠান ব্যবস্থাপনা — পরবর্তী ধাপ</small></div>
@@ -183,6 +183,18 @@ let currentUser = null;
 let currentAccessContext = null;
 let recoveryMode = false;
 
+async function loadPlatformBranding() {
+  if (!sb) return;
+  try {
+    const { data, error } = await sb.rpc("get_platform_branding_v1");
+    if (error || !data?.logo_url) return;
+    const url = new URL(data.logo_url, location.href);
+    if (url.protocol !== "https:" || url.hostname !== "raw.githubusercontent.com") return;
+    const logo = $("brandLogo");
+    if (logo) { logo.src = url.href; logo.alt = data.logo_alt || "MR RAHAMAN Business Ecosystem logo"; }
+  } catch (error) { console.warn("Platform branding fallback used", error); }
+}
+
 function showMessage(text, kind="info") {
   const el=$("authMessage"); el.textContent=text;
   el.className="notice"+(kind==="error"?" err":kind==="ok"?" ok":"");
@@ -248,6 +260,14 @@ async function refreshUser() {
   }
   currentAccessContext=accessData;
   const isPlatformOwner=accessData.is_platform_owner===true;
+  const organizationCount=Array.isArray(accessData.organizations)?accessData.organizations.length:0;
+  const summary=$("accessSummary");
+  if(summary) {
+    summary.textContent=isPlatformOwner
+      ? "Platform Owner পরিচয় ডেটাবেসে যাচাই হয়েছে। Organization: "+organizationCount+"।"
+      : "Platform Owner নয়। সক্রিয় Organization ও dashboard.read Permission অনুযায়ী প্রবেশাধিকার যাচাই হচ্ছে। Organization: "+organizationCount+"।";
+    summary.className="notice"+(isPlatformOwner?" ok":"");
+  }
   const hasDashboardPermission=Array.isArray(accessData.organizations) &&
     accessData.organizations.some(org=>Array.isArray(org.permissions) &&
       org.permissions.includes("dashboard.read"));
@@ -401,6 +421,7 @@ $("changePasswordBtn").onclick=async()=>{
 };
 $("pendingLogoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
 $("logoutBtn").onclick=async()=>{await sb.auth.signOut();displayApp(null);showTab("login");};
+loadPlatformBranding();
 boot();
 </script>
 </body>
