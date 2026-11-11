@@ -207,8 +207,13 @@ grant execute on function public.bootstrap_primary_organization_v1() to authenti
 commit;
 
 -- Review notes:
--- 1) This seeds all 41 current organization-scoped permissions to the canonical Owner role.
---    Platform role grants remain separate and are NOT created or modified here.
+-- 1) Founder decision (2026-11-11): seed all 41 current organization-scoped permissions
+--    to the canonical Owner role. Platform role grants remain separate and are NOT created
+--    or modified here.
+-- 2) This grants the role-permission rows, NOT unconditional runtime access. The mandatory
+--    module-aware has_org_permission gate must be installed and verified first: a permission
+--    is effective only while its mapped platform module AND organization module are active.
+--    Disabled/missing/inactive module => deny, even for Owner. No Owner bypass is permitted.
 -- 2) Approval self-approval remains prohibited by the existing approval engine.
 -- 3) This function must be tested in an isolated project with a real authenticated founder JWT.
 -- 4) Do not run until triggers, RLS, ACLs, schema drift, and the permission matrix are independently reviewed.
