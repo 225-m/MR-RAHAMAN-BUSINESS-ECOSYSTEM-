@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 430" role="img" aria-labelledby="title desc">
+<title id="title">MR RAHAMAN Business Ecosystem</title>
+<desc id="desc">MR RAHAMAN business ecosystem logo in navy blue and green with an upward growth arrow.</desc>
+<defs>
+  <linearGradient id="green" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#00a86b"/><stop offset="1" stop-color="#68c928"/></linearGradient>
+  <linearGradient id="blue" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#0c397e"/><stop offset="1" stop-color="#08234f"/></linearGradient>
+  <linearGradient id="pill" x1="0" x2="1"><stop stop-color="#0755b7"/><stop offset="1" stop-color="#168d45"/></linearGradient>
+</defs>
+<g fill="none" stroke="url(#green)" stroke-width="22" stroke-linecap="round">
+  <path d="M175 143 C310 8 620 0 745 75"/>
+  <path d="M140 226 C270 330 570 324 760 225"/>
+  <path d="M785 220 C900 205 1000 145 1085 66"/>
+</g>
+<path d="M1052 60 L1112 34 L1102 101 Z" fill="#42b52b"/>
+<g fill="url(#blue)" font-family="Arial,Helvetica,sans-serif" font-weight="900">
+  <text x="165" y="250" font-size="220" letter-spacing="-18">MR</text>
+</g>
+<g fill="url(#green)">
+  <rect x="725" y="178" width="38" height="72" rx="5"/>
+  <rect x="778" y="145" width="38" height="105" rx="5"/>
+  <rect x="831" y="110" width="38" height="140" rx="5"/>
+  <rect x="884" y="75" width="38" height="175" rx="5"/>
+</g>
+<text x="600" y="335" text-anchor="middle" fill="#082b60" font-family="Arial,Helvetica,sans-serif" font-size="88" font-weight="900" letter-spacing="5">MR RAHAMAN</text>
+<rect x="280" y="354" width="640" height="56" rx="28" fill="url(#pill)"/>
+<text x="600" y="394" text-anchor="middle" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="35" font-weight="800" letter-spacing="1">Business Ecosystem</text>
+</svg>
