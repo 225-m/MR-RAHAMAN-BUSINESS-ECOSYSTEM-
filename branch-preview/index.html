@@ -63,6 +63,7 @@
 <p class="hint">বিভাগ–জেলা–উপজেলার তালিকা অ্যাপের সঙ্গে bundled; ইন্টারনেট ছাড়াও নির্বাচন করা যাবে। ইউনিয়ন/ওয়ার্ডের নাম বর্তমানে হাতে লিখুন।</p>
 <p class="hint">তথ্যসূত্র: <a href="https://github.com/open-admin-data/bangladesh-administrative-divisions" target="_blank" rel="noopener noreferrer">Open Admin Data</a> · CC BY 4.0</p>
 </div>
+<div class="field section"><label for="branchReason">অনুরোধের কারণ *</label><textarea id="branchReason" maxlength="1000" required placeholder="কেন এই ব্রাঞ্চ তৈরি বা পরিবর্তন প্রয়োজন? (কমপক্ষে ৮ অক্ষর)"></textarea></div>
 <div class="row actions"><button class="btn" type="submit" id="saveBranch">সংরক্ষণ করুন</button><button class="btn alt" type="button" id="cancelEdit">বাতিল</button></div>
 </form>
 </div>
@@ -244,7 +245,14 @@ function openEditor(branch=null){
 }
 function editBranch(branch){openEditor(branch);}
 function closeEditor(){$("editor").classList.add("hidden");$("branchForm").reset();}
-$("branchForm").addEventListener("submit",async e=>{e.preventDefault();const id=$("branchId").value;let address={...editingAddressBase};const raw=$("branchAddress").value.trim();if(raw){try{const parsed=JSON.parse(raw);if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))address={...address,...parsed};else address.full_address=raw;}catch{address.full_address=raw;}}
+$("branchForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const id=$("branchId").value;
+ const reason=$("branchReason").value.trim();
+ if(reason.length<8){note("অনুরোধের কারণ কমপক্ষে ৮ অক্ষরের হতে হবে।","error");return;}
+ let address={...editingAddressBase};
+ const raw=$("branchAddress").value.trim();
+ if(raw){try{const parsed=JSON.parse(raw);if(parsed&&typeof parsed==="object"&&!Array.isArray(parsed))address={...address,...parsed};else address.full_address=raw;}catch{address.full_address=raw;}}
  const div=locationTree.find(x=>x.id===$("locationDivision").value),dist=div?.district?.find(x=>x.id===$("locationDistrict").value),upa=dist?.upazila?.find(x=>x.id===$("locationUpazila").value);
  if(div)address.division={id:div.id,name_bn:div.name.local,name_en:div.name.en};
  if(dist)address.district={id:dist.id,name_bn:dist.name.local,name_en:dist.name.en};
@@ -255,10 +263,33 @@ $("branchForm").addEventListener("submit",async e=>{e.preventDefault();const id=
  if($("locationArea").value.trim())address.area=$("locationArea").value.trim();
  if($("locationPostal").value.trim())address.postal_code=$("locationPostal").value.trim();
  address.country="Bangladesh";
- const args={p_organization_id:orgId(),p_branch_code:$("branchCode").value.trim(),p_name:$("branchName").value.trim(),p_address:address,p_phone:$("branchPhone").value.trim()||null};
- $("saveBranch").disabled=true;try{if(id){await rpc("branch_update",{...args,p_branch_id:id});note("ব্রাঞ্চ আপডেটের অনুরোধ সম্পন্ন হয়েছে।","ok");}else{await rpc("branch_create",args);note("নতুন ব্রাঞ্চ তৈরি হয়েছে।","ok");}closeEditor();await loadBranches();}catch(err){fail(err);}finally{$("saveBranch").disabled=false;}
+ const payload={branch_code:$("branchCode").value.trim(),name:$("branchName").value.trim(),address,phone:$("branchPhone").value.trim()||null};
+ $("saveBranch").disabled=true;
+ try{
+  const approvalId=await rpc("create_approval_request_v1",{
+   p_organization_id:orgId(),
+   p_request_type:id?"branch.update":"branch.create",
+   p_target_type:"branch",
+   p_target_id:id||null,
+   p_request_payload:payload,
+   p_reason:reason
+  });
+  note("অনুমোদনের অনুরোধ জমা হয়েছে (ID: "+approvalId+")। স্বাধীন অনুমোদন ও Apply সম্পন্ন না হওয়া পর্যন্ত ব্রাঞ্চ ডেটা পরিবর্তিত হবে না।","ok");
+  closeEditor();
+ }catch(err){fail(err);}
+ finally{$("saveBranch").disabled=false;}
 });
-async function changeStatus(id,status){const reason=prompt("Status পরিবর্তনের কারণ লিখুন:");if(!reason?.trim())return;try{await rpc("branch_set_status",{p_organization_id:orgId(),p_branch_id:id,p_status:status,p_reason:reason.trim()});note("ব্রাঞ্চের Status পরিবর্তন হয়েছে।","ok");await loadBranches();}catch(e){fail(e);}}
+async function changeStatus(id,status){
+ const reason=prompt("অনুমোদনের জন্য কারণ লিখুন (কমপক্ষে ৮ অক্ষর):");
+ if(!reason||reason.trim().length<8){note("অনুরোধের কারণ কমপক্ষে ৮ অক্ষরের হতে হবে।","error");return;}
+ try{
+  const approvalId=await rpc("create_approval_request_v1",{
+   p_organization_id:orgId(),p_request_type:"branch.set_status",
+   p_target_type:"branch",p_target_id:id,p_request_payload:{status},p_reason:reason.trim()
+  });
+  note("Status পরিবর্তনের অনুমোদন অনুরোধ জমা হয়েছে (ID: "+approvalId+")। অনুমোদন ও Apply না হওয়া পর্যন্ত বর্তমান Status অপরিবর্তিত থাকবে।","ok");
+ }catch(e){fail(e);}
+}
 $("captureGps").addEventListener("click",()=>{if(!navigator.geolocation){note("এই Browser-এ GPS সমর্থিত নয়।","error");return;}navigator.geolocation.getCurrentPosition(pos=>{$("latitude").value=pos.coords.latitude.toFixed(7);$("longitude").value=pos.coords.longitude.toFixed(7);updateMapLink();note("GPS location পাওয়া গেছে। Save করতে Profile সংরক্ষণ করুন।","ok");},err=>note("GPS পাওয়া যায়নি: "+err.message,"error"),{enableHighAccuracy:true,timeout:12000,maximumAge:60000});});
 function updateMapLink(){const lat=$("latitude").value,lon=$("longitude").value;$("mapLink").href=lat!==""&&lon!==""?"https://www.google.com/maps?q="+encodeURIComponent(lat+","+lon):"#";$("mapLink").textContent=lat!==""&&lon!==""?"Google Maps-এ দেখুন":"GPS নিলে Map link তৈরি হবে";}
 $("latitude").addEventListener("input",updateMapLink);$("longitude").addEventListener("input",updateMapLink);
