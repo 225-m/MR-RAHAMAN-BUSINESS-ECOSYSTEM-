@@ -1,0 +1,49 @@
+name: Android Static Login Website
+
+on:
+  push:
+    branches:
+      - fix/android-static-login-host-v1
+    paths:
+      - "index.html"
+      - ".github/workflows/deploy-static-login.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Validate static login page
+        run: |
+          test -s index.html
+          grep -qi '<meta charset="utf-8">' index.html
+          grep -q 'signInWithPassword' index.html
+          grep -q 'current_access_context_v1' index.html
+          ! grep -Eqi 'sb_secret_[A-Za-z0-9_-]{20,}|SUPABASE_SERVICE_ROLE_KEY[[:space:]]*=' index.html
+      - name: Stage only the public website
+        run: |
+          mkdir -p public
+          cp index.html public/index.html
+      - name: Upload website artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4
